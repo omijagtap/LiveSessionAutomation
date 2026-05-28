@@ -1,0 +1,10 @@
+# Python Cache
+__pycache__/
+*.pyc
+
+# IDE Settings
+.vscode/
+
+# Service account credentials (Google Sheets API secrets - DO NOT SHARE)
+*.json
+!config.json

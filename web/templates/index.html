@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>upGrad Automation - Live Session Reminder Dashboard</title>
+    
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom theme CSS -->
+    <link rel="stylesheet" href="/css/theme.css?v=1.0.1">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+      body { 
+          font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+      }
+      h1, h2, h3, h4, h5, h6 {
+          font-family: 'Poppins', sans-serif;
+      }
+      .font-mono {
+          font-family: 'JetBrains Mono', monospace;
+      }
+    </style>
+</head>
+<body class="grid-bg h-screen w-screen overflow-hidden flex flex-col p-4">
+
+    
+    <div class="relative z-10 w-full h-full flex flex-col max-w-full mx-auto overflow-hidden">
+        
+        <!-- HEADER / BRAND LOGO (Wording as upgrade automation, no logo) -->
+        <div class="flex items-center justify-between mb-4 px-2 flex-shrink-0">
+            <div class="flex items-center drop-shadow-md">
+                <span class="text-2xl font-semibold text-[#EE2C3C] tracking-tight">upGrad</span>
+                <span class="text-xl font-thin text-[var(--foreground)] tracking-wide ml-2 opacity-70">Automation</span>
+            </div>
+            
+            <!-- Header right: onboarding notice + settings button -->
+            <div class="flex items-center gap-3">
+                <!-- First-time onboarding notice (hidden once configured) -->
+                <div id="onboarding-notice" class="hidden items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] text-amber-400 font-medium">
+                    <i data-lucide="alert-triangle" class="w-3 h-3 flex-shrink-0"></i>
+                    <span>Configure your email settings before sending.</span>
+                </div>
+                <!-- Quick Settings Trigger -->
+                <button id="settings-btn" onclick="openSettingsModal()" class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-medium text-white/80 hover:text-white rounded-xl border border-white/10 transition-all btn-press">
+                    <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                    Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN WIDE CARD CONTAINER -->
+        <div class="ultra-glass p-6 rounded-2xl card-shine flex flex-col lg:flex-row gap-6 relative text-left flex-1 overflow-hidden">
+            
+            <!-- LEFT SIDE: INPUTS, ACTIONS & STEPS -->
+            <div class="lg:w-4/12 flex flex-col gap-4 relative z-10 h-full overflow-visible flex-shrink-0">
+                <!-- Status Badge & Test Redirect Info -->
+                <div class="flex flex-wrap items-center gap-3 mb-2 flex-shrink-0">
+                    <div class="flex items-center gap-2">
+                        <div class="live-dot" id="system-dot"></div>
+                        <span class="text-[10px] font-semibold text-[#4ade80] uppercase tracking-widest" id="system-status-text" style="letter-spacing: 0.15em;">Active & Connected</span>
+                    </div>
+                    <span id="test-redirect-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <i data-lucide="shield-alert" class="w-3 h-3"></i> Test Redirect Active (Sender Email)
+                    </span>
+                </div>
+                
+                <!-- Main Heading -->
+                <h1 class="text-2xl font-extrabold mb-1 tracking-tight shiny-text leading-tight drop-shadow-sm flex-shrink-0">
+                    Live Session Reminder
+                </h1>
+                
+                <!-- Paragraph Subtext -->
+                <p class="text-[rgba(255,255,255,0.6)] text-xs mb-2 leading-relaxed font-light flex-shrink-0">
+                    Manage and automate live session reminders. Select a date range to write references directly to O4/P4 in the Google Sheet. The sheet will recalculate data in Columns A to J, pull it here, display dashboard analytics, and preview emails.
+                </p>
+                
+                <!-- Date Picker Form with Floating Popups -->
+                <form id="fetch-form" class="space-y-4 mb-2 flex-shrink-0">
+                    <!-- Hidden input fields to submit with form -->
+                    <input type="hidden" id="start_date" name="start_date" required />
+                    <input type="hidden" id="end_date" name="end_date" required />
+
+                    <div class="grid grid-cols-2 gap-3 relative">
+                        <!-- Start Date Selector -->
+                        <div class="relative">
+                            <label class="block text-[9px] font-semibold text-white/50 mb-1.5 uppercase tracking-widest">
+                                Start Date
+                            </label>
+                            <button type="button" id="start-date-btn" onclick="toggleDatepicker('start', event)" class="input-glow w-full bg-[rgba(0,0,0,0.35)] border border-[rgba(255,255,255,0.12)] text-white/80 hover:text-white text-left text-xs rounded-xl px-3 py-3 focus:outline-none transition-all flex items-center gap-2">
+                                <i data-lucide="calendar" class="w-3.5 h-3.5 text-white/40"></i>
+                                <span id="start-date-text">Select Date</span>
+                            </button>
+                            
+                            <!-- Start Datepicker Popup -->
+                            <div id="start-datepicker" class="datepicker-popup hidden mt-2 left-0">
+                                <div class="datepicker">
+                                    <div class="datepicker-top">
+                                        <div class="btn-group">
+                                            <button type="button" class="tag" onclick="selectQuickDate('start', 'today')">Today</button>
+                                            <button type="button" class="tag" onclick="selectQuickDate('start', 'tomorrow')">Tomorrow</button>
+                                            <button type="button" class="tag" onclick="selectQuickDate('start', 'in2days')">In 2 days</button>
+                                        </div>
+                                        <div class="month-selector">
+                                            <button type="button" class="arrow" onclick="changeMonth('start', -1)"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                                            <span id="start-month-name" class="month-name">December 2020</span>
+                                            <button type="button" class="arrow" onclick="changeMonth('start', 1)"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="datepicker-calendar">
+                                        <span class="day">Mo</span>
+                                        <span class="day">Tu</span>
+                                        <span class="day">We</span>
+                                        <span class="day">Th</span>
+                                        <span class="day">Fr</span>
+                                        <span class="day">Sa</span>
+                                        <span class="day">Su</span>
+                                        <div id="start-cal-days" class="contents">
+                                            <!-- Injected dynamically -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- End Date Selector -->
+                        <div class="relative">
+                            <label class="block text-[9px] font-semibold text-white/50 mb-1.5 uppercase tracking-widest">
+                                End Date
+                            </label>
+                            <button type="button" id="end-date-btn" onclick="toggleDatepicker('end', event)" class="input-glow w-full bg-[rgba(0,0,0,0.35)] border border-[rgba(255,255,255,0.12)] text-white/80 hover:text-white text-left text-xs rounded-xl px-3 py-3 focus:outline-none transition-all flex items-center gap-2">
+                                <i data-lucide="calendar" class="w-3.5 h-3.5 text-white/40"></i>
+                                <span id="end-date-text">Select Date</span>
+                            </button>
+                            
+                            <!-- End Datepicker Popup -->
+                            <div id="end-datepicker" class="datepicker-popup hidden mt-2 right-0">
+                                <div class="datepicker">
+                                    <div class="datepicker-top">
+                                        <div class="btn-group">
+                                            <button type="button" class="tag" onclick="selectQuickDate('end', 'today')">Today</button>
+                                            <button type="button" class="tag" onclick="selectQuickDate('end', 'tomorrow')">Tomorrow</button>
+                                            <button type="button" class="tag" onclick="selectQuickDate('end', 'in2days')">In 2 days</button>
+                                        </div>
+                                        <div class="month-selector">
+                                            <button type="button" class="arrow" onclick="changeMonth('end', -1)"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                                            <span id="end-month-name" class="month-name">December 2020</span>
+                                            <button type="button" class="arrow" onclick="changeMonth('end', 1)"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="datepicker-calendar">
+                                        <span class="day">Mo</span>
+                                        <span class="day">Tu</span>
+                                        <span class="day">We</span>
+                                        <span class="day">Th</span>
+                                        <span class="day">Fr</span>
+                                        <span class="day">Sa</span>
+                                        <span class="day">Su</span>
+                                        <div id="end-cal-days" class="contents">
+                                            <!-- Injected dynamically -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sync / Fetch Button -->
+                    <button type="submit" id="fetch-btn"
+                        class="w-full py-3 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl transition-all flex justify-center items-center gap-2 border border-transparent shadow-lg hover:shadow-xl btn-press disabled:opacity-40 disabled:pointer-events-none">
+                        <i data-lucide="lock" class="w-3.5 h-3.5" id="fetch-btn-lock-icon"></i>
+                        <span id="fetch-btn-text">Sync & Fetch Live Sessions</span>
+                    </button>
+                </form>
+ 
+                <!-- Live Progress Terminal Console (Embedded) -->
+                <div id="terminal-container" class="w-full bg-[#050507] border border-[rgba(255,255,255,0.08)] rounded-xl p-4 shadow-inner flex flex-col flex-grow min-h-0 overflow-hidden">
+                    <div class="flex items-center justify-between pb-2 border-b border-white/5 mb-2 flex-shrink-0">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                            <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                            <span class="text-[9px] text-white/40 font-mono ml-2">system-log.sh</span>
+                        </div>
+                        <button onclick="clearTerminal()" class="text-[9px] text-white/30 hover:text-white/60 font-mono">clear</button>
+                    </div>
+                    <div id="terminal-log" class="text-[11px] font-mono text-white/80 overflow-y-auto flex-grow space-y-1.5 text-left scrollbar-thin">
+                        <p class="text-white/40">> System initialized. Ready to sync with Google Sheet.</p>
+                        <p class="text-white/40">> Configure credentials in settings if sending emails.</p>
+                    </div>
+                </div>
+            </div>
+ 
+            <!-- Vertical Divider -->
+            <div class="hidden lg:block w-px bg-gradient-to-b from-transparent via-[rgba(255,255,255,0.08)] to-transparent relative z-10"></div>
+ 
+            <!-- RIGHT SIDE: DASHBOARD WORKSPACE -->
+            <div class="lg:w-7/12 flex flex-col justify-start relative z-10 h-full overflow-hidden">
+                
+                <!-- Active Dashboard State -->
+                <div id="dashboard-active" class="flex-1 flex flex-col space-y-4 min-h-0 overflow-hidden">
+                    
+                    <!-- Quick Stats Grid -->
+                    <div class="grid grid-cols-3 gap-3 flex-shrink-0">
+                        <!-- Stat: Total Sessions -->
+                        <div class="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.07] rounded-xl p-3.5 text-left overflow-hidden group hover:border-white/10 transition-colors">
+                            <div class="absolute top-3 right-3 w-6 h-6 rounded-lg bg-[#EE2C3C]/10 flex items-center justify-center">
+                                <i data-lucide="calendar-check" class="w-3.5 h-3.5 text-[#EE2C3C]/70"></i>
+                            </div>
+                            <span class="text-[9px] font-semibold text-white/35 uppercase tracking-widest block mb-2">Total Sessions</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-2xl font-bold text-white tabular-nums" id="stat-sessions">0</span>
+                                <span class="text-[9px] text-[#4ade80] font-semibold" id="stat-sessions-sub">active</span>
+                            </div>
+                        </div>
+                        <!-- Stat: Unique Professors -->
+                        <div class="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.07] rounded-xl p-3.5 text-left overflow-hidden group hover:border-white/10 transition-colors">
+                            <div class="absolute top-3 right-3 w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                                <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400/70"></i>
+                            </div>
+                            <span class="text-[9px] font-semibold text-white/35 uppercase tracking-widest block mb-2">Unique Professors</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="text-2xl font-bold text-white tabular-nums" id="stat-graders">0</span>
+                                <span class="text-[9px] text-white/35 font-medium">profs</span>
+                            </div>
+                        </div>
+                        <!-- Stat: Date Scope -->
+                        <div class="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.07] rounded-xl p-3.5 text-left overflow-hidden group hover:border-white/10 transition-colors">
+                            <div class="absolute top-3 right-3 w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                <i data-lucide="calendar-range" class="w-3.5 h-3.5 text-amber-400/70"></i>
+                            </div>
+                            <span class="text-[9px] font-semibold text-white/35 uppercase tracking-widest block mb-2">Date Scope</span>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-sm font-bold text-white truncate max-w-full" id="stat-range">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mode Tab Headers -->
+
+                    <div class="border-b border-white/10 flex-shrink-0">
+                        <nav class="flex gap-4" aria-label="Tabs">
+                            <button onclick="switchTab('tab-preview')" id="btn-tab-preview" class="border-b-2 border-[#EE2C3C] text-white py-2 px-1 text-xs font-medium flex items-center gap-1.5 transition-all">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                Draft Previews
+                            </button>
+                            <button onclick="switchTab('tab-report')" id="btn-tab-report" class="border-b-2 border-transparent text-white/50 hover:text-white hover:border-white/20 py-2 px-1 text-xs font-medium flex items-center gap-1.5 transition-all hidden">
+                                <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+                                Execution Report
+                            </button>
+                        </nav>
+                    </div>
+
+                    <!-- TAB CONTENT PANELS -->
+                    <div id="tab-content" class="flex-1 min-h-0 relative text-left">
+                        
+                        <!-- TAB 1: DRAFT PREVIEWS -->
+                        <div id="tab-preview" class="h-full flex flex-col min-h-0 space-y-4">
+                            <div class="flex justify-between items-center flex-shrink-0 gap-3">
+                                <div class="flex items-center gap-3">
+                                    <h3 class="text-xs font-semibold text-white/60">Generated Email Drafts</h3>
+                                    <!-- SPOC Filter Pills -->
+                                    <div id="spoc-filter-container" class="hidden items-center gap-1.5">
+                                        <span class="text-[9px] font-semibold text-white/40 uppercase tracking-wider mr-1">SPOC:</span>
+                                        <div id="spoc-buttons-list" class="flex items-center gap-1.5 flex-wrap">
+                                            <!-- Injected dynamically -->
+                                        </div>
+                                        <span id="spoc-filter-summary-text" class="text-[10px] text-indigo-400 font-semibold ml-2 select-none"></span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    <button id="btn-reset-statuses" onclick="resetAllStatuses()" class="hidden px-3.5 py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold rounded-xl border border-white/5 transition-all btn-press">
+                                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1 inline-block"></i> Reset Statuses
+                                    </button>
+                                    <button onclick="startOboWizard()" id="btn-start-obo" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-semibold rounded-xl border border-white/10 transition-all btn-press flex items-center gap-1.5">
+                                        <i data-lucide="play-circle" class="w-4 h-4"></i>
+                                        Review One-by-One
+                                    </button>
+                                    <button onclick="openBulkWizard()" id="btn-start-bulk" class="hidden px-4 py-2 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 btn-press shadow-md transition-all">
+                                        <i data-lucide="send" class="w-4 h-4"></i>
+                                        Bulk Send
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="previews-cards-grid" class="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-1 scrollbar-thin">
+                                <!-- Cards populated dynamically -->
+                                <div id="previews-empty-state" class="col-span-full flex flex-col items-center justify-center text-center text-white/30 text-xs py-12">
+                                    <i data-lucide="mail-open" class="w-8 h-8 mb-2"></i>
+                                    No sessions synced yet. Pick a date range and click Sync to generate drafts.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 3 removed as per user request -->
+
+                        <!-- TAB 4: FINAL EXECUTION REPORT -->
+                        <div id="tab-report" class="hidden h-full flex flex-col min-h-0 space-y-4">
+                            <div class="border border-white/5 bg-white/[0.01] rounded-2xl p-5 space-y-4 flex flex-col h-full min-h-0">
+                                <div class="flex items-center gap-2.5 pb-3 border-b border-white/5 flex-shrink-0">
+                                    <div class="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
+                                        <i data-lucide="check-circle2" class="w-4 h-4"></i>
+                                    </div>
+                                    <h4 class="text-sm font-semibold text-white">Execution Process Completed</h4>
+                                </div>
+                                
+                                <div class="grid grid-cols-4 gap-3 text-center flex-shrink-0">
+                                    <div class="bg-black/20 p-2.5 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-white/40 block">Total</span>
+                                        <span class="text-lg font-bold text-white" id="report-total">0</span>
+                                    </div>
+                                    <div class="bg-green-500/5 p-2.5 rounded-lg border border-green-500/10">
+                                        <span class="text-[9px] text-green-400/60 block">Success</span>
+                                        <span class="text-lg font-bold text-green-400" id="report-success">0</span>
+                                    </div>
+                                    <div class="bg-red-500/5 p-2.5 rounded-lg border border-red-500/10">
+                                        <span class="text-[9px] text-red-400/60 block">Failed</span>
+                                        <span class="text-lg font-bold text-red-400" id="report-failed">0</span>
+                                    </div>
+                                    <div class="bg-white/5 p-2.5 rounded-lg border border-white/5">
+                                        <span class="text-[9px] text-white/40 block">Skipped</span>
+                                        <span class="text-lg font-bold text-white/80" id="report-skipped">0</span>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2 flex-1 flex flex-col min-h-0">
+                                    <span class="text-[10px] font-bold text-white/50 uppercase tracking-wider block flex-shrink-0">Detailed Logs</span>
+                                    <div class="flex-1 overflow-y-auto border border-white/5 bg-black/30 rounded-xl p-3 space-y-1.5 scrollbar-thin text-xs text-left" id="report-details-list">
+                                        <!-- Dynamic details log -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ONE-BY-ONE WIZARD MODAL                    -->
+    <!-- ========================================== -->
+    <div id="obo-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/85 backdrop-blur-sm p-3">
+        <div class="ultra-glass w-full max-w-[86vw] rounded-2xl border border-white/[0.08] flex flex-col text-left h-[90vh] overflow-hidden shadow-2xl shadow-black/70">
+
+            <!-- ── COMPACT HEADER BAR ── -->
+            <div class="flex items-center justify-between px-5 py-3 border-b border-white/[0.05] flex-shrink-0 gap-3 bg-white/[0.015]">
+
+                <!-- Left: Status dot + Name + pipe + Subject (editable) -->
+                <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                    <!-- Tiny status dot badge -->
+                    <span id="obo-modal-status-badge"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold tracking-widest uppercase font-mono flex-shrink-0 bg-amber-500/10 text-amber-400 border border-amber-500/15">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current opacity-80"></span>
+                        Draft
+                    </span>
+                    <!-- Professor name -->
+                    <span class="text-[13px] font-semibold text-white/90 truncate max-w-[190px] flex-shrink-0 font-sans" id="obo-modal-title">Professor Name</span>
+                    <!-- Pipe divider -->
+                    <span class="text-white/15 flex-shrink-0 text-sm select-none">|</span>
+                    <!-- Editable subject -->
+                    <input type="text" id="obo-modal-subject"
+                        class="bg-transparent border-none text-white/40 hover:text-white/65 focus:text-white/85 focus:outline-none text-[11px] flex-1 min-w-0 truncate font-sans transition-colors duration-150"
+                        placeholder="Subject Line" />
+                </div>
+
+                <!-- Right: Progress + Arrows + Send + Close -->
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                    <span class="font-mono text-white/30 text-[10px] px-2 tabular-nums" id="obo-modal-progress">1 of 10</span>
+
+                    <!-- Prev -->
+                    <button id="obo-modal-prev-btn" onclick="oboModalPrev()" title="Previous"
+                        class="w-7 h-7 rounded-lg bg-white/[0.04] hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white/90 border border-white/[0.05] hover:border-white/15 transition-all duration-150 btn-press">
+                        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                    </button>
+
+                    <!-- Next -->
+                    <button id="obo-modal-next-btn" onclick="oboModalNext()" title="Next"
+                        class="w-7 h-7 rounded-lg bg-white/[0.04] hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white/90 border border-white/[0.05] hover:border-white/15 transition-all duration-150 btn-press">
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                    </button>
+
+                    <!-- Send -->
+                    <button onclick="oboModalSendCurrent()" id="obo-modal-send-btn"
+                        class="px-3.5 py-1.5 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-[11px] font-semibold rounded-lg flex items-center gap-1.5 btn-press shadow-md shadow-[#EE2C3C]/20 transition-all duration-150 ml-0.5">
+                        <i data-lucide="send" class="w-3 h-3"></i>
+                        Send Email
+                    </button>
+
+                    <!-- Close -->
+                    <button onclick="closeOboModal()" title="Close"
+                        class="w-7 h-7 rounded-lg bg-white/[0.04] hover:bg-white/10 flex items-center justify-center text-white/35 hover:text-white/80 border border-white/[0.05] hover:border-white/15 transition-all duration-150 btn-press ml-0.5">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── EMAIL PREVIEW AREA ── -->
+            <div class="flex-1 min-h-0 overflow-hidden flex flex-col px-5 pb-5 pt-3 gap-2.5">
+
+                <!-- Compact Sender → Recipient Strip (no duplicate subject) -->
+                <div class="flex items-center gap-2.5 flex-shrink-0 bg-white/[0.02] border border-white/[0.06] rounded-xl px-3 py-2 text-[11px]">
+                    <!-- Avatar -->
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#EE2C3C] to-[#ff6b6b] flex items-center justify-center text-white font-bold text-[12px] shadow flex-shrink-0"
+                        id="obo-modal-header-avatar">M</div>
+
+                    <!-- From → To single line -->
+                    <div class="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
+                        <span class="font-semibold text-white/80 flex-shrink-0" id="obo-modal-header-from-name">Mukhtar Ali Sayyed</span>
+                        <span class="text-white/25 font-mono flex-shrink-0" id="obo-modal-header-from-email">&lt;Mukhtar.sayyed@upgrad.com&gt;</span>
+                        <span class="text-white/20 flex-shrink-0">→</span>
+                        <input type="email" id="obo-modal-to"
+                            class="bg-transparent border-none text-white/55 hover:text-white/80 focus:text-white/90 focus:outline-none font-mono text-[10px] p-0 min-w-0 flex-1"
+                            placeholder="recipient@email.com" />
+                    </div>
+
+                    <!-- SPOC Badge -->
+                    <span id="obo-modal-spoc-badge" class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0">SPOC: N/A</span>
+
+                    <!-- Timestamp right-aligned -->
+                    <span class="text-[9px] text-white/20 font-mono flex-shrink-0">Just now</span>
+                </div>
+
+                <!-- Email Body — full-width clean reader (zoom 75% for readability without scrolling) -->
+                <div class="flex-1 overflow-y-auto bg-white text-black rounded-xl shadow-lg leading-relaxed font-sans"
+                    id="obo-modal-html-preview"
+                    style="font-size: 13px; padding: 20px 24px; min-height: 0; zoom: 0.75;">
+                    <!-- Email HTML injected dynamically -->
+                </div>
+
+                <!-- Hidden sidebar list for JS compatibility -->
+                <div id="obo-sidebar-list" class="hidden"></div>
+                <!-- Hidden subject preview (for JS compatibility, no longer shown) -->
+                <div id="obo-modal-subject-preview" class="hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- BULK WIZARD MODAL                          -->
+    <!-- ========================================== -->
+    <div id="bulk-wizard-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/85 backdrop-blur-sm p-3">
+        <div class="ultra-glass w-full max-w-[86vw] rounded-2xl border border-white/[0.08] flex flex-col text-left h-[90vh] overflow-hidden shadow-2xl shadow-black/70">
+
+            <!-- ── COMPACT HEADER BAR ── -->
+            <div class="flex items-center justify-between px-5 py-3 border-b border-white/[0.05] flex-shrink-0 gap-3 bg-white/[0.015]">
+                <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                    <span id="bulk-modal-status-badge"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold tracking-widest uppercase font-mono flex-shrink-0 bg-indigo-500/10 text-indigo-400 border border-indigo-500/15">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 opacity-80"></span>
+                        Bulk Review
+                    </span>
+                    <span class="text-[13px] font-semibold text-white/90 truncate max-w-[190px] flex-shrink-0 font-sans" id="bulk-modal-title">Professor Name</span>
+                    <span class="text-white/15 flex-shrink-0 text-sm select-none">|</span>
+                    <span class="text-white/40 text-[11px] flex-1 min-w-0 truncate font-sans" id="bulk-modal-subject">Subject Line</span>
+                </div>
+
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                    <span class="font-mono text-white/30 text-[10px] px-2 tabular-nums" id="bulk-modal-progress">1 of 10</span>
+
+                    <!-- Prev -->
+                    <button id="bulk-modal-prev-btn" onclick="bulkWizardPrev()" title="Previous"
+                        class="w-7 h-7 rounded-lg bg-white/[0.04] hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white/90 border border-white/[0.05] hover:border-white/15 transition-all duration-150 btn-press">
+                        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                    </button>
+
+                    <!-- Next -->
+                    <button id="bulk-modal-next-btn" onclick="bulkWizardNext()" title="Next"
+                        class="px-3.5 py-1.5 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-[11px] font-semibold rounded-lg flex items-center gap-1.5 btn-press shadow-md transition-all duration-150">
+                        <span id="bulk-modal-next-btn-text">Next</span>
+                        <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    </button>
+
+                    <!-- Close -->
+                    <button onclick="closeBulkWizard()" title="Close"
+                        class="w-7 h-7 rounded-lg bg-white/[0.04] hover:bg-white/10 flex items-center justify-center text-white/35 hover:text-white/80 border border-white/[0.05] hover:border-white/15 transition-all duration-150 btn-press ml-0.5">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── DRAFT PREVIEW STATE ── -->
+            <div id="bulk-modal-preview-state" class="flex-1 min-h-0 overflow-hidden flex flex-col px-5 pb-5 pt-3 gap-2.5">
+                <div class="flex items-center gap-2.5 flex-shrink-0 bg-white/[0.02] border border-white/[0.06] rounded-xl px-3 py-2 text-[11px]">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#EE2C3C] to-[#ff6b6b] flex items-center justify-center text-white font-bold text-[12px] shadow flex-shrink-0"
+                        id="bulk-modal-header-avatar">M</div>
+                    <div class="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
+                        <span class="font-semibold text-white/80 flex-shrink-0" id="bulk-modal-header-from-name">Mukhtar Ali Sayyed</span>
+                        <span class="text-white/25 font-mono flex-shrink-0" id="bulk-modal-header-from-email">&lt;Mukhtar.sayyed@upgrad.com&gt;</span>
+                        <span class="text-white/20 flex-shrink-0">→</span>
+                        <span class="text-white/55 font-mono text-[10px] truncate" id="bulk-modal-to">recipient@email.com</span>
+                    </div>
+                    <span id="bulk-modal-spoc-badge" class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0">SPOC: N/A</span>
+                    <span class="text-[9px] text-white/20 font-mono flex-shrink-0">Just now</span>
+                </div>
+
+                <div class="flex-1 overflow-y-auto bg-white text-black rounded-xl shadow-lg leading-relaxed font-sans"
+                    id="bulk-modal-html-preview"
+                    style="font-size: 13px; padding: 20px 24px; min-height: 0; zoom: 0.75;">
+                </div>
+            </div>
+
+            <!-- ── CONFIRMATION STATE ── -->
+            <div id="bulk-modal-confirm-state" class="hidden flex-1 min-h-0 overflow-y-auto p-6 flex flex-col justify-center items-center text-center space-y-6">
+                <div class="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                    <i data-lucide="check-square" class="w-8 h-8"></i>
+                </div>
+                <div class="space-y-2 max-w-lg">
+                    <h3 class="text-xl font-bold text-white leading-tight">Review Complete! Ready to Send?</h3>
+                    <p class="text-xs text-white/55 leading-relaxed">
+                        You have verified all the emails. Clicking the button below will transmit reminders using your SMTP credentials in bulk.
+                    </p>
+                </div>
+
+                <div class="bg-white/[0.02] border border-white/5 rounded-2xl p-4 w-full max-w-md text-left space-y-3">
+                    <div class="flex justify-between items-center text-xs pb-2 border-b border-white/5">
+                        <span class="text-white/40">Active Filter (SPOC):</span>
+                        <span id="bulk-modal-confirm-spoc" class="font-bold text-indigo-400">All SPOCs</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs pb-2 border-b border-white/5">
+                        <span class="text-white/40">Total Emails to Send:</span>
+                        <span id="bulk-modal-confirm-count" class="font-bold text-white">0 Emails</span>
+                    </div>
+                    <div class="text-[10px] text-white/35 leading-normal italic">
+                        * Note: To ensure SMTP reliability, emails will be sent sequentially with a short delay.
+                    </div>
+                </div>
+
+                <div class="flex gap-3 w-full max-w-md">
+                    <button type="button" onclick="bulkWizardBackToReview()" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-semibold rounded-xl border border-white/5 transition-all btn-press">
+                        Back to Previews
+                    </button>
+                    <button type="button" onclick="bulkWizardExecute()" class="flex-[2] py-3 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl transition-all btn-press shadow-lg shadow-[#EE2C3C]/20 flex items-center justify-center gap-2">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                        Confirm & Send Bulk
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── SENDING STATE ── -->
+            <div id="bulk-modal-sending-state" class="hidden flex-1 min-h-0 p-6 flex flex-col space-y-4">
+                <div class="flex items-center justify-between text-xs text-white/60 mb-1 flex-shrink-0">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="loader" class="w-4 h-4 animate-spin text-[#EE2C3C]"></i>
+                        <span class="font-semibold text-white">Transmitting Bulk Queue...</span>
+                    </div>
+                    <span id="bulk-modal-sending-progress" class="font-mono text-white/60">0 / 0 Emails (0%)</span>
+                </div>
+                <div class="flex-grow min-h-0 w-full bg-black/40 border border-white/5 rounded-xl p-4 text-left overflow-y-auto font-mono text-[11px] text-white/70 space-y-2 scrollbar-thin" id="bulk-modal-console">
+                </div>
+            </div>
+
+            <!-- ── COMPLETED STATE ── -->
+            <div id="bulk-modal-completed-state" class="hidden flex-1 min-h-0 p-6 flex flex-col justify-center items-center text-center space-y-6">
+                <div class="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400">
+                    <i data-lucide="check-circle2" class="w-8 h-8"></i>
+                </div>
+                <div class="space-y-2 max-w-lg">
+                    <h3 class="text-xl font-bold text-white leading-tight">Bulk Send Finished!</h3>
+                    <p class="text-xs text-white/55 leading-relaxed" id="bulk-modal-completed-summary">
+                        All emails have been processed. Please view the Execution Report for details.
+                    </p>
+                </div>
+                <button type="button" onclick="bulkWizardViewReport()" class="w-full max-w-xs py-3 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl transition-all btn-press shadow-lg shadow-[#EE2C3C]/20 flex items-center justify-center gap-2">
+                    <i data-lucide="check-square" class="w-4 h-4"></i>
+                    View Execution Report
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CONFIGURATION SETTINGS MODAL               -->
+    <!-- ========================================== -->
+    <div id="settings-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="ultra-glass w-full max-w-4xl rounded-3xl border border-white/10 p-6 flex flex-col gap-4 text-left max-h-[95vh] overflow-y-auto scrollbar-none shadow-2xl">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="settings" class="w-4 h-4 text-[#EE2C3C]"></i>
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">Email & Signature Settings</h3>
+                </div>
+                <button type="button" onclick="closeSettingsModal()" class="w-6 h-6 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-all btn-press">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
+            <form id="settings-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- SECTION 1: Email Credentials -->
+                    <div class="space-y-3 bg-white/[0.01] border border-white/5 rounded-2xl p-4 flex flex-col justify-between">
+                        <div>
+                            <p class="text-[9px] font-bold text-white/40 uppercase tracking-widest border-b border-white/5 pb-1 mb-3">Sending Credentials</p>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="space-y-1">
+                                    <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Sender Email ID</label>
+                                    <input type="email" id="cfg-sender-email"
+                                        class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10"
+                                        placeholder="yourname@outlook.com" required />
+                                </div>
+
+                                <div class="space-y-1">
+                                    <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">CC Emails</label>
+                                    <input type="text" id="cfg-cc-emails"
+                                        class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10"
+                                        placeholder="cc1@example.com, cc2@example.com" />
+                                </div>
+                            </div>
+
+                            <div class="space-y-1 mt-3 border-t border-white/5 pt-3">
+                                <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">App Password <span class="text-amber-400/80 font-medium">(Session-only)</span></label>
+                                <div class="flex gap-2">
+                                    <div class="relative flex-1">
+                                        <input type="password" id="cfg-app-password"
+                                            class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 pr-10 rounded-lg border border-white/10"
+                                            placeholder="Outlook App Password" />
+                                        <button type="button" onclick="togglePasswordVisibility()" tabindex="-1"
+                                            class="absolute right-3 top-3 text-white/30 hover:text-white/70 transition-colors">
+                                            <i data-lucide="eye" class="w-3.5 h-3.5" id="pwd-eye-icon"></i>
+                                        </button>
+                                    </div>
+                                    <button type="button" id="verify-pwd-btn" onclick="verifyAppPassword()"
+                                        class="px-4 py-2.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-[10px] font-semibold rounded-lg border border-indigo-500/20 hover:border-indigo-500/35 transition-all flex items-center gap-1.5 flex-shrink-0 btn-press">
+                                        <i data-lucide="shield-check" class="w-3 h-3"></i>
+                                        Verify
+                                    </button>
+                                </div>
+                                <div id="verify-status" class="mt-1.5 text-[9px] font-semibold flex items-center gap-1 hidden">
+                                    <i data-lucide="check-circle" class="w-3 h-3"></i>
+                                    <span id="verify-status-text">Verified</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3 border-t border-white/5 pt-3">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="cfg-test-mode" class="rounded bg-black/35 border-white/10 text-[#EE2C3C] focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5" checked />
+                                    <span class="text-[9px] font-semibold text-white/70 uppercase tracking-wider select-none">Test Mode (Redirect all emails to yourself)</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 border-t border-white/5 pt-3">
+                            <p class="text-[8.5px] text-indigo-400 leading-relaxed">
+                                ℹ️ <strong>App Password:</strong> The App Password is saved locally in your browser to avoid re-entering it. If you clear your browser cookies/caches, this password will be reset.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 2: Signature Details -->
+                    <div class="space-y-3 bg-white/[0.01] border border-white/5 rounded-2xl p-4">
+                        <p class="text-[9px] font-bold text-white/40 uppercase tracking-widest border-b border-white/5 pb-1">Email Signature Details</p>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Full Name</label>
+                                <input type="text" id="cfg-sig-name" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" required placeholder="John Doe" />
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Job Title</label>
+                                <input type="text" id="cfg-sig-title" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="Senior Associate" />
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-1">
+                            <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Office Address</label>
+                            <input type="text" id="cfg-sig-addr" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="123 Business Street, City" />
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Phone Number</label>
+                                <input type="text" id="cfg-sig-phone" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="+91-1234567890" />
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Contact Email</label>
+                                <input type="email" id="cfg-sig-email" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="contact@company.com" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-2 border-t border-white/5 justify-end">
+                    <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-semibold text-white/80 rounded-xl transition-all btn-press border border-white/5">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-[#EE2C3C] hover:bg-[#d42535] text-xs font-semibold text-white rounded-xl transition-all btn-press shadow-md">
+                        Save Configuration
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- APP PASSWORD REQUEST POPUP                 -->
+    <!-- ========================================== -->
+    <div id="password-popup-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+        <div class="ultra-glass w-full max-w-sm rounded-3xl border border-white/10 p-6 flex flex-col gap-4 text-left shadow-2xl">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="key-round" class="w-4 h-4 text-amber-400"></i>
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">Authentication Required</h3>
+                </div>
+                <button type="button" onclick="closePasswordPopup()" class="w-6 h-6 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-all">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
+            <!-- Notice & Form -->
+            <div class="space-y-3">
+                <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-400 leading-relaxed">
+                    <div class="flex items-start gap-2">
+                        <i data-lucide="alert-circle" class="w-4.5 h-4.5 flex-shrink-0 mt-0.5"></i>
+                        <span>
+                            <strong>Notice:</strong> The Live Session Reminder system requires SMTP credentials to verify and transmit emails. Please enter your App Password below.
+                        </span>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="block text-[9px] font-semibold text-white/55 uppercase tracking-wider">App Password</label>
+                    <div class="relative">
+                        <input type="password" id="popup-app-password" 
+                            class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 pr-10 rounded-lg border border-white/10 focus:outline-none"
+                            placeholder="Enter Outlook App Password" />
+                        <button type="button" onclick="togglePopupPasswordVisibility()" tabindex="-1"
+                            class="absolute right-3 top-3 text-white/30 hover:text-white/70 transition-colors">
+                            <i data-lucide="eye" class="w-3.5 h-3.5" id="popup-pwd-eye-icon"></i>
+                        </button>
+                    </div>
+                </div>
+                <p class="text-[9.5px] text-white/40 leading-normal">
+                    * Until your app password is provided and verified, the live session reminder system cannot be used. This password is kept in-memory for the current browser session only.
+                </p>
+                <div id="popup-verify-status" class="text-[10px] text-red-400 font-medium hidden"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-2 justify-end pt-2 border-t border-white/5">
+                <button type="button" onclick="closePasswordPopup()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-semibold text-white/80 rounded-xl transition-all btn-press border border-white/5">
+                    Cancel
+                </button>
+                <button type="button" id="popup-verify-btn" onclick="submitPasswordPopup()" class="px-4 py-2 bg-[#EE2C3C] hover:bg-[#d42535] text-xs font-semibold text-white rounded-xl transition-all btn-press flex items-center gap-1.5 shadow-md">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                    Verify & Unlock
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Frontend JS logic script link -->
+    <script src="/js/app.js"></script>
+    <script>
+        // Render lucide icons once DOM is ready
+        document.addEventListener("DOMContentLoaded", function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
