@@ -281,15 +281,15 @@ def group_sessions_by_grader(data):
 @app.route('/')
 def serve_index():
     """Serve the main application page"""
-    return send_from_directory("web/templates", "index.html")
+    return send_from_directory(os.path.join(WORKSPACE_DIR, "web", "templates"), "index.html")
 
 @app.route('/css/<path:path>')
 def serve_css(path):
-    return send_from_directory("web/static/css", path)
+    return send_from_directory(os.path.join(WORKSPACE_DIR, "web", "static", "css"), path)
 
 @app.route('/js/<path:path>')
 def serve_js(path):
-    return send_from_directory("web/static/js", path)
+    return send_from_directory(os.path.join(WORKSPACE_DIR, "web", "static", "js"), path)
 
 @app.route('/api/config', methods=['GET'])
 def get_config():
