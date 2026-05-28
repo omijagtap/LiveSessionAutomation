@@ -512,12 +512,17 @@ def verify_email():
         msg['To'] = sender_email
         msg.attach(MIMEText(body_html, 'html'))
 
-        server = smtplib.SMTP('smtp.office365.com', 587)
+        # timeout=15 prevents Render proxy from killing the request with HTML 502/504
+        server = smtplib.SMTP('smtp.office365.com', 587, timeout=15)
         server.starttls()
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, [sender_email], msg.as_string())
         server.quit()
         return jsonify({"status": "success", "message": "Verification email sent successfully!"})
+    except smtplib.SMTPAuthenticationError:
+        return jsonify({"status": "error", "message": "SMTP Error: Authentication failed. Check your email and App Password."}), 401
+    except (TimeoutError, ConnectionRefusedError, OSError) as e:
+        return jsonify({"status": "error", "message": f"SMTP connection failed (port blocked or timeout): {str(e)}"}), 503
     except Exception as e:
         print(f"Verify SMTP Error: {e}")
         return jsonify({"status": "error", "message": f"SMTP Error: {str(e)}"}), 500
@@ -588,7 +593,8 @@ def send_single_email():
     msg.attach(MIMEText(body_html, 'html'))
     
     try:
-        server = smtplib.SMTP('smtp.office365.com', 587)
+        # timeout=15 prevents Render proxy from killing the request with HTML 502/504
+        server = smtplib.SMTP('smtp.office365.com', 587, timeout=15)
         server.starttls()
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, all_recipients, msg.as_string())
@@ -597,6 +603,10 @@ def send_single_email():
             return jsonify({"status": "success", "message": f"Email sent successfully to {original_to} (Redirected to {to_email})" })
         else:
             return jsonify({"status": "success", "message": f"Email sent successfully to {to_email}" })
+    except smtplib.SMTPAuthenticationError:
+        return jsonify({"status": "error", "message": "SMTP Error: Authentication failed. Check your email and App Password."}), 401
+    except (TimeoutError, ConnectionRefusedError, OSError) as e:
+        return jsonify({"status": "error", "message": f"SMTP connection failed (port blocked or timeout): {str(e)}"}), 503
     except Exception as e:
         print(f"SMTP Error: {e}")
         return jsonify({"status": "error", "message": f"SMTP Error: {str(e)}"}), 500
