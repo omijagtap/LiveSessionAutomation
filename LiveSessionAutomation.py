@@ -30,9 +30,9 @@ app = Flask(
 )
 CORS(app)
 
-# Configuration
-CONFIG_FILE = "config.json"
+# Configuration — all paths are absolute so Gunicorn on Render finds them
 WORKSPACE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(WORKSPACE_DIR, "config.json")
 
 # Default configuration
 DEFAULT_CONFIG = {
@@ -298,14 +298,27 @@ def serve_js(path):
 
 @app.route('/api/config', methods=['GET'])
 def get_config():
-    config = load_config()
-    client_config = {
-        "BASE_SHEET_URL": config.get("BASE_SHEET_URL", DEFAULT_CONFIG["BASE_SHEET_URL"]),
-        "TAB_NAME": config.get("TAB_NAME", DEFAULT_CONFIG["TAB_NAME"]),
-        "TEST_MODE": config.get("TEST_MODE", DEFAULT_CONFIG["TEST_MODE"]),
-        "SIGNATURE_ADDRESS": STATIC_OFFICE_ADDRESS
-    }
-    return jsonify(client_config)
+    try:
+        config = load_config()
+        client_config = {
+            "BASE_SHEET_URL": config.get("BASE_SHEET_URL", DEFAULT_CONFIG["BASE_SHEET_URL"]),
+            "TAB_NAME": config.get("TAB_NAME", DEFAULT_CONFIG["TAB_NAME"]),
+            "TEST_MODE": config.get("TEST_MODE", DEFAULT_CONFIG["TEST_MODE"]),
+            "SIGNATURE_ADDRESS": STATIC_OFFICE_ADDRESS
+        }
+        return jsonify(client_config)
+    except Exception as e:
+        print(f"[ERROR] /api/config failed: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# Global error handlers — always return JSON so the frontend never receives HTML
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"status": "error", "message": "Not found", "code": 404}), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify({"status": "error", "message": str(e), "code": 500}), 500
 
 @app.route('/api/config', methods=['POST'])
 def update_config():
