@@ -5,6 +5,9 @@ __pycache__/
 # IDE Settings
 .vscode/
 
+# Sensitive configuration environment variables
+.env
+
 # Service account credentials (Google Sheets API secrets - DO NOT SHARE)
 *.json
 !config.json

@@ -16,6 +16,10 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize Flask App
 app = Flask(__name__, static_folder="web/static", template_folder="web/templates")
@@ -25,9 +29,9 @@ CORS(app)
 CONFIG_FILE = "config.json"
 WORKSPACE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Default configuration from live_session_reminder.py
+# Default configuration
 DEFAULT_CONFIG = {
-    "BASE_SHEET_URL": "https://docs.google.com/spreadsheets/d/1cjigiLzsA8m9fDKMFhqcdmn4GYOFoicCnDsAadjiRDc",
+    "BASE_SHEET_URL": "",
     "TAB_NAME": "Live Session Reminder",
     "TEST_MODE": True
 }
@@ -35,24 +39,34 @@ DEFAULT_CONFIG = {
 STATIC_OFFICE_ADDRESS = "3rd Floor, CTS-796-A | Fleet Bldg. Opp, Marol Fire Station, Marol, Andheri (East)| Mumbai MH 400059"
 
 def load_config():
-    """Load configuration from config.json"""
+    """Load configuration from config.json, with env var overrides"""
+    config = DEFAULT_CONFIG.copy()
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r") as f:
-                return json.load(f)
+                loaded = json.load(f)
+                if isinstance(loaded, dict):
+                    config.update(loaded)
         except Exception as e:
             print(f"Error reading config.json: {e}")
-    
-    # Return default configuration
-    config = DEFAULT_CONFIG.copy()
-    save_config(config)
+            
+    # Priority: Environment variable / .env file
+    env_sheet_url = os.environ.get("BASE_SHEET_URL")
+    if env_sheet_url:
+        config["BASE_SHEET_URL"] = env_sheet_url
+        
     return config
 
 def save_config(config):
-    """Save configuration to config.json."""
+    """Save configuration to config.json, keeping BASE_SHEET_URL protected in .env/environment"""
     try:
+        # Clone configuration and remove sensitive sheets url before saving to git-tracked config.json
+        to_save = config.copy()
+        if "BASE_SHEET_URL" in to_save:
+            del to_save["BASE_SHEET_URL"]
+            
         with open(CONFIG_FILE, "w") as f:
-            json.dump(config, f, indent=4)
+            json.dump(to_save, f, indent=4)
         return True
     except Exception as e:
         print(f"Error saving config.json: {e}")
