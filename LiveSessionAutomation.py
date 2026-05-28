@@ -322,7 +322,7 @@ def server_error(e):
 
 @app.route('/api/config', methods=['POST'])
 def update_config():
-    new_data = request.json
+    new_data = request.get_json(force=True, silent=True) or {}
     config = load_config()
     
     # Update fields
@@ -383,7 +383,7 @@ def get_sheet_dates():
 @app.route('/api/fetch-sessions', methods=['POST'])
 def fetch_sessions():
     """Fetch and filter sessions from Google Sheets based on date range"""
-    req = request.json
+    req = request.get_json(force=True, silent=True) or {}
     start_date_raw = req.get("start_date")
     end_date_raw = req.get("end_date")
     sig_name = req.get("signature_name", "").strip()
@@ -486,7 +486,7 @@ def fetch_sessions():
 @app.route('/api/verify-email', methods=['POST'])
 def verify_email():
     """Send a test email to the sender to verify SMTP credentials."""
-    req = request.json
+    req = request.get_json(force=True, silent=True) or {}
     sender_email = req.get("sender_email", "").strip()
     sender_password = req.get("sender_password", "").strip()
     sender_name = req.get("sender_name", "Team").strip()
@@ -525,7 +525,7 @@ def verify_email():
 @app.route('/api/send-email', methods=['POST'])
 def send_single_email():
     """Send a single email with optional CC recipients"""
-    req = request.json
+    req = request.get_json(force=True, silent=True) or {}
     to_email = req.get("to")
     cc_list_override = req.get("cc")
     subject = req.get("subject")
