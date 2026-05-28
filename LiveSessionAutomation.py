@@ -21,8 +21,13 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Initialize Flask App
-app = Flask(__name__, static_folder="web/static", template_folder="web/templates")
+# Initialize Flask App — use absolute paths so Gunicorn on Render finds the folders
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(
+    __name__,
+    static_folder=os.path.join(_BASE_DIR, "web", "static"),
+    template_folder=os.path.join(_BASE_DIR, "web", "templates")
+)
 CORS(app)
 
 # Configuration
