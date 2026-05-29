@@ -556,24 +556,15 @@ def send_single_email():
     msg['From'] = formataddr((sender_name, sender_email))
     
     if test_mode:
-        # Send to the requested email (Column I) instead of overriding to sender_email, fallback to sender_email
-        to_email = spoc_email if spoc_email and "@" in spoc_email else (to_email if to_email else sender_email)
-        
-        # Include CC in test mode if configured
-        if cc_list_override is not None:
-            if isinstance(cc_list_override, str):
-                cc_list = [e.strip() for e in cc_list_override.split(",") if e.strip()]
-            elif isinstance(cc_list_override, list):
-                cc_list = [e.strip() for e in cc_list_override if e and e.strip()]
-        else:
-            cc_list = list(config.get("CC_EMAILS", []))
-            
-        msg['Subject'] = subject
+        # TEST MODE: Redirect ALL emails to the sender themselves (safe testing — no real professor gets emailed)
+        to_email = sender_email
+
+        # No CC in test mode to keep it clean
+        cc_list = []
+
+        msg['Subject'] = f"[TEST] {subject}"
         msg['To'] = to_email
-        cc_list = [email.strip() for email in cc_list if email and email.strip()]
-        if cc_list:
-            msg['Cc'] = ", ".join(cc_list)
-        all_recipients = [to_email] + cc_list
+        all_recipients = [to_email]
     else:
         if cc_list_override is not None:
             if isinstance(cc_list_override, str):
@@ -600,7 +591,7 @@ def send_single_email():
         server.sendmail(sender_email, all_recipients, msg.as_string())
         server.quit()
         if test_mode:
-            return jsonify({"status": "success", "message": f"Email sent successfully to {original_to} (Redirected to {to_email})" })
+            return jsonify({"status": "success", "message": f"[TEST] Email sent to your inbox ({sender_email}) — originally meant for {original_to}"})
         else:
             return jsonify({"status": "success", "message": f"Email sent successfully to {to_email}" })
     except smtplib.SMTPAuthenticationError:
