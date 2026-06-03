@@ -12,6 +12,11 @@ let currentTab = 'tab-preview';
 let reportData = [];
 let configData = {};
 let smeStatuses = {};
+let currentUser = null;
+let allLogs = [];
+let currentLogsPage = 1;
+const logsPerPage = 15;
+let dashboardHistory = [];
 
 // Session-only App Password (never persisted)
 let sessionAppPassword = "";
@@ -296,7 +301,7 @@ function closeDatepicker(type) {
 // Fetch dates from sheet
 async function fetchSheetDates() {
     try {
-        const response = await fetch("/api/get-sheet-dates");
+        const response = await fetchWithAuth("/api/get-sheet-dates");
         const data = await response.json();
         if (data.status === "success") {
             if (data.start_date) {
@@ -319,30 +324,6 @@ async function fetchSheetDates() {
         logToTerminal(`Could not fetch dates: ${err.message}`, "warning");
     }
 }
-
-// Initialize on page load
-document.addEventListener("DOMContentLoaded", () => {
-    fetchConfig();
-    fetchSheetDates();
-    clearTerminal();
-    loadSmeStatuses();
-    sessionAppPassword = getStoredAppPassword();
-    initPreviews();
-    checkOnboardingNotice();
-    loadReport();
-    logToTerminal("System ready. Configure credentials and select date range.", "info");
-    
-    // Prevent datepicker popup clicks from bubbling to document (which closes them)
-    const startPop = document.getElementById("start-datepicker");
-    if (startPop) startPop.addEventListener("click", (e) => e.stopPropagation());
-    const endPop = document.getElementById("end-datepicker");
-    if (endPop) endPop.addEventListener("click", (e) => e.stopPropagation());
-    
-    // Automatically open settings if not onboarded
-    if (!isOnboarded() || !getStoredSenderEmail() || !getStoredSigName()) {
-        openSettingsModal();
-    }
-});
 
 // Terminal logging
 function logToTerminal(message, type = "info") {
@@ -430,9 +411,8 @@ async function verifyAppPassword() {
     lucide.createIcons();
 
     try {
-        const response = await fetch("/api/verify-email", {
+        const response = await fetchWithAuth("/api/verify-email", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 sender_email: senderEmail, 
                 sender_password: appPwd, 
@@ -467,18 +447,18 @@ async function verifyAppPassword() {
     }
 }
 
-// Password visibility toggle
-function togglePasswordVisibility() {
-    const input = document.getElementById("cfg-app-password");
-    const icon = document.getElementById("pwd-eye-icon");
+// Password visibility toggle (with support for custom inputs/icons)
+function togglePasswordVisibility(inputId = "cfg-app-password", iconId = "pwd-eye-icon") {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
     if (!input) return;
     
     if (input.type === "password") {
         input.type = "text";
-        icon.setAttribute("data-lucide", "eye-off");
+        if (icon) icon.setAttribute("data-lucide", "eye-off");
     } else {
         input.type = "password";
-        icon.setAttribute("data-lucide", "eye");
+        if (icon) icon.setAttribute("data-lucide", "eye");
     }
     lucide.createIcons();
 }
@@ -486,7 +466,7 @@ function togglePasswordVisibility() {
 // Fetch configuration from server
 async function fetchConfig() {
     try {
-        const response = await fetch("/api/config");
+        const response = await fetchWithAuth("/api/config");
         configData = await response.json();
 
         // Populate signature fields from local storage
@@ -508,24 +488,6 @@ async function fetchConfig() {
         document.getElementById("cfg-cc-emails").value = getStoredCcEmails();
         document.getElementById("cfg-app-password").value = getStoredAppPassword();
 
-        // Populate test mode checkbox
-        const testModeInput = document.getElementById("cfg-test-mode");
-        if (testModeInput) {
-            testModeInput.checked = configData.TEST_MODE !== false;
-        }
-
-        // Show/hide visual redirect active badge
-        const testRedirectBadge = document.getElementById("test-redirect-badge");
-        if (testRedirectBadge) {
-            if (configData.TEST_MODE !== false) {
-                testRedirectBadge.classList.remove("hidden");
-                testRedirectBadge.classList.add("inline-flex");
-            } else {
-                testRedirectBadge.classList.remove("inline-flex");
-                testRedirectBadge.classList.add("hidden");
-            }
-        }
-
         logToTerminal("Configuration loaded successfully.", "info");
     } catch (err) {
         logToTerminal(`Failed to load configuration: ${err.message}`, "error");
@@ -540,7 +502,22 @@ function openSettingsModal() {
     document.getElementById("cfg-sig-email").value = getStoredSigEmail();
     document.getElementById("cfg-sender-email").value = getStoredSenderEmail();
     document.getElementById("cfg-cc-emails").value = getStoredCcEmails();
-    document.getElementById("cfg-app-password").value = getStoredAppPassword();
+    
+    const pwd = getStoredAppPassword();
+    document.getElementById("cfg-app-password").value = pwd;
+    
+    const verifyStatus = document.getElementById("verify-status");
+    const verifyStatusText = document.getElementById("verify-status-text");
+    if (verifyStatus && verifyStatusText) {
+        if (pwd) {
+            verifyStatus.className = "mt-1.5 text-[9px] font-semibold flex items-center gap-1 text-green-400";
+            verifyStatusText.textContent = "Verified (credentials loaded from Supabase)";
+            verifyStatus.classList.remove("hidden");
+        } else {
+            verifyStatus.classList.add("hidden");
+        }
+    }
+    
     document.getElementById("settings-modal").classList.remove("hidden");
 }
 
@@ -581,17 +558,39 @@ document.getElementById("settings-form").addEventListener("submit", async (e) =>
     setCookie(LS_SIG_EMAIL, sigEmail);
     localStorage.setItem(LS_SIG_EMAIL, sigEmail);
 
-    // Save only system parameters to server
+    // Save personal settings to Supabase
+    if (currentUser) {
+        try {
+            await fetchWithAuth("/api/settings", {
+                method: "POST",
+                body: JSON.stringify({
+                    email: currentUser.email,
+                    sender_email: senderEmail,
+                    cc_emails: ccEmails,
+                    app_password: appPwd,
+                    signature_name: sigName,
+                    signature_title: sigTitle,
+                    signature_address: configData.SIGNATURE_ADDRESS || "",
+                    signature_phone: sigPhone,
+                    signature_email: sigEmail,
+                    test_mode: false
+                })
+            });
+        } catch(e) {
+            console.error("Failed to sync SMTP to backend:", e);
+        }
+    }
+
+    // Save system parameters to server config
     const payload = {
         BASE_SHEET_URL: configData.BASE_SHEET_URL || "",
         TAB_NAME: configData.TAB_NAME || "",
-        TEST_MODE: document.getElementById("cfg-test-mode").checked
+        TEST_MODE: false
     };
 
     try {
-        const response = await fetch("/api/config", {
+        const response = await fetchWithAuth("/api/config", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
         const result = await response.json();
@@ -647,9 +646,8 @@ document.getElementById("fetch-form").addEventListener("submit", async (e) => {
     logToTerminal("Connecting to Google Sheets using credentials...", "info");
     
     try {
-        const response = await fetch("/api/fetch-sessions", {
+        const response = await fetchWithAuth("/api/fetch-sessions", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 start_date: startVal, 
                 end_date: endVal,
@@ -675,9 +673,14 @@ document.getElementById("fetch-form").addEventListener("submit", async (e) => {
             logToTerminal("Google Sheets formulas calculated correctly.", "success");
             logToTerminal(`Imported ${data.total_sessions} live sessions across ${smeEmails.length} unique professors.`, "success");
             
-            // Populate stats
-            document.getElementById("stat-sessions").innerText = data.total_sessions;
-            document.getElementById("stat-graders").innerText = smeEmails.length;
+            // Populate stats (Total Drafts & Unique Professors)
+            const uniqueProfs = new Set();
+            Object.values(gradersData).forEach(g => {
+                if (g.email) uniqueProfs.add(g.email.toLowerCase());
+            });
+            document.getElementById("stat-sessions").innerText = smeEmails.length;
+            document.getElementById("stat-sessions-sub").innerText = `${data.total_sessions} sessions`;
+            document.getElementById("stat-graders").innerText = uniqueProfs.size;
             
             // Format date scope for header display
             const formatShortDate = (d) => {
@@ -692,7 +695,6 @@ document.getElementById("fetch-form").addEventListener("submit", async (e) => {
             document.getElementById("stat-range").innerText = `${formatShortDate(startVal)} - ${formatShortDate(endVal)}`;
             document.getElementById("stat-range").title = `${startVal} to ${endVal}`;
             
-            // Initialize Dashboard Chart
             // Initialize Draft previews
             initPreviews();
             
@@ -725,13 +727,11 @@ document.getElementById("fetch-form").addEventListener("submit", async (e) => {
 });
 
 
-
 // Initialize Draft Previews (Grid of Cards Layout)
 function initPreviews() {
     const gridContainer = document.getElementById("previews-cards-grid");
     const oboStartBtn = document.getElementById("btn-start-obo");
     const bulkStartBtn = document.getElementById("btn-start-bulk");
-    const resetStatusesBtn = document.getElementById("btn-reset-statuses");
     gridContainer.innerHTML = "";
     
     if (smeEmails.length === 0) {
@@ -743,14 +743,18 @@ function initPreviews() {
         `;
         if (oboStartBtn) oboStartBtn.classList.add("hidden");
         if (bulkStartBtn) bulkStartBtn.classList.add("hidden");
-        if (resetStatusesBtn) resetStatusesBtn.classList.add("hidden");
         lucide.createIcons();
         return;
     }
     
     if (oboStartBtn) oboStartBtn.classList.remove("hidden");
-    if (bulkStartBtn) bulkStartBtn.classList.remove("hidden");
-    if (resetStatusesBtn) resetStatusesBtn.classList.remove("hidden");
+    
+    // Hide/show bulk send button based on user role check
+    const isUser = currentUser && currentUser.role === "User";
+    if (bulkStartBtn) {
+        if (isUser) bulkStartBtn.classList.add("hidden");
+        else bulkStartBtn.classList.remove("hidden");
+    }
     
     smeEmails.forEach((email) => {
         const info = gradersData[email];
@@ -773,37 +777,51 @@ function initPreviews() {
             .replace(/&nbsp;/g, ' ')
             .substring(0, 110)
             .trim() + "...";
+             // Check if SPOC credentials are configured
+        const warningBadgeHtml = info.has_credentials 
+            ? "" 
+            : `<span class="bg-red-500/10 text-red-400 border border-red-500/20 text-[9px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 flex-shrink-0 animate-pulse">
+                <i data-lucide="alert-triangle" class="w-3 h-3"></i> Missing Credentials
+               </span>`;
             
         const card = document.createElement("div");
-        card.className = "bg-white/[0.02] border border-white/5 rounded-2xl p-4 hover:border-[#EE2C3C]/30 hover:bg-white/[0.04] transition-all flex flex-col justify-between space-y-3 card-shine text-left relative min-h-[195px] cursor-pointer group";
+        card.className = "bg-white/[0.02] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-[#EE2C3C]/30 hover:bg-white/[0.04] transition-all flex flex-col justify-between gap-3 card-shine text-left relative min-h-[200px] sm:min-h-[220px] cursor-pointer group";
         card.onclick = () => openOboModalForEmail(email);
         
         card.innerHTML = `
-            <div class="space-y-1.5 flex-1 flex flex-col justify-between">
+            <div class="flex-1 flex flex-col gap-3">
                 <div>
-                    <div class="flex justify-between items-start gap-2">
-                        <h4 class="text-xs font-bold text-white truncate max-w-[150px] group-hover:text-[#EE2C3C] transition-colors">${info.name}</h4>
-                        <span class="bg-white/5 text-white/70 text-[9px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0">${info.sessions.length} sessions</span>
+                    <!-- Header Row: Name & Sessions Count -->
+                    <div class="flex justify-between items-center gap-2">
+                        <h4 class="text-sm font-bold text-white truncate flex-1 group-hover:text-[#EE2C3C] transition-colors">${info.name}</h4>
+                        <span class="bg-white/5 text-white/70 text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0">${info.sessions.length} session${info.sessions.length > 1 ? 's' : ''}</span>
                     </div>
-                    <p class="text-[9px] text-white/40 truncate">${info.email}</p>
-                    <p class="text-[9.5px] text-indigo-400 font-semibold mt-1 flex items-center gap-1">
-                        <i data-lucide="user-check" class="w-3 h-3 opacity-70"></i>
-                        <span>SPOC: ${info.spoc_display || 'N/A'}</span>
-                    </p>
+                    
+                    <!-- Email address -->
+                    <p class="text-[10px] text-white/40 truncate mt-1">${info.email}</p>
+                    
+                    <!-- Badges Row: SPOC & Warning (if any) -->
+                    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                        <div class="inline-flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-lg">
+                            <i data-lucide="user-check" class="w-3 h-3 text-indigo-400"></i>
+                            <span class="text-[10px] text-indigo-400 font-semibold">SPOC: ${info.spoc_display || 'N/A'}</span>
+                        </div>
+                        ${warningBadgeHtml}
+                    </div>
                 </div>
                 
                 <div class="space-y-1 mt-1">
-                    <div class="text-[9px] text-white/50 font-semibold truncate">Subject: ${info.subject}</div>
-                    <div class="text-[10px] text-white/40 line-clamp-3 leading-relaxed mt-1 font-light italic">
+                    <div class="text-[10px] text-white/55 font-semibold truncate">Subject: ${info.subject}</div>
+                    <div class="text-[10px] text-white/35 line-clamp-2 leading-relaxed font-light italic">
                         "${bodySnippet}"
                     </div>
                 </div>
             </div>
             
-            <div class="flex items-center justify-between pt-3 border-t border-white/5 gap-2 flex-shrink-0">
-                <span class="${statusClass} text-[8px] px-2 py-0.5 rounded-full font-mono font-medium">${status}</span>
-                <span class="text-[9px] text-white/30 group-hover:text-white/60 transition-colors flex items-center gap-1">
-                    Review & Send <i data-lucide="chevron-right" class="w-3 h-3"></i>
+            <div class="flex items-center justify-between pt-2.5 border-t border-white/5 gap-2 flex-shrink-0">
+                <span class="${statusClass} text-[9px] px-2.5 py-0.5 rounded-full font-mono font-semibold">${status}</span>
+                <span class="text-[10px] text-white/30 group-hover:text-white/60 transition-colors flex items-center gap-1 font-medium">
+                    Review &amp; Send <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
                 </span>
             </div>
         `;
@@ -906,16 +924,38 @@ function oboModalRenderCurrent() {
         spocBadge.textContent = `SPOC: ${info.spoc_display || 'N/A'}`;
     }
     
-    // Set mock inbox headers dynamically from config
-    document.getElementById("obo-modal-header-from-name").innerText = getStoredSigName() || "Team";
-    const senderEmail = getStoredSenderEmail();
-    document.getElementById("obo-modal-header-from-email").innerText = senderEmail ? `<${senderEmail}>` : "";
+    // Set mock inbox headers dynamically from SPOC details to strictly prevent misleading visual fallback
+    const spocName = info.spoc_display || (info.spoc_email_display ? extract_name_from_email(info.spoc_email_display) : "SPOC");
+    document.getElementById("obo-modal-header-from-name").innerText = spocName;
     
-    // Dynamically set avatar initial
+    const senderEmailElement = document.getElementById("obo-modal-header-from-email");
+    if (senderEmailElement) {
+        if (!info.has_credentials) {
+            senderEmailElement.innerHTML = `<span class="text-red-400 font-bold">&lt;${info.spoc_email_display || "Missing Email"}&gt; (Missing SMTP Credentials - Incomplete)</span>`;
+        } else {
+            senderEmailElement.innerText = info.spoc_email_display ? `<${info.spoc_email_display}>` : "";
+        }
+    }
+    
+    // Dynamically set avatar initial from SPOC name
     const avatar = document.getElementById("obo-modal-header-avatar");
     if (avatar) {
-        const firstLetter = (getStoredSigName() || "Team").trim().charAt(0).toUpperCase();
+        const firstLetter = spocName.trim().charAt(0).toUpperCase();
         avatar.innerText = firstLetter;
+    }
+
+    // Disable/Enable send button based on credentials
+    const sendBtn = document.getElementById("obo-modal-send-btn");
+    if (sendBtn) {
+        if (!info.has_credentials) {
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i data-lucide="alert-triangle" class="w-3 h-3"></i> Missing Credentials';
+            sendBtn.className = "px-3.5 py-1.5 bg-red-500/10 text-red-400 text-[11px] font-semibold rounded-lg flex items-center gap-1.5 border border-red-500/20 cursor-not-allowed ml-0.5";
+        } else {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i data-lucide="send" class="w-3 h-3"></i> Send Email';
+            sendBtn.className = "px-3.5 py-1.5 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-[11px] font-semibold rounded-lg flex items-center gap-1.5 btn-press shadow-md shadow-[#EE2C3C]/20 transition-all duration-150 ml-0.5";
+        }
     }
     
     const headerTo = document.getElementById("obo-modal-header-to");
@@ -925,7 +965,6 @@ function oboModalRenderCurrent() {
     if (headerSub) headerSub.innerText = info.subject;
     
     // Only reset the subject field when switching to a different draft
-    // (preserve user edits if re-rendering the same draft e.g. after send)
     const subjectField = document.getElementById("obo-modal-subject");
     if (subjectField && subjectField.dataset.forIndex !== String(oboIndex)) {
         subjectField.value = info.subject;
@@ -996,16 +1035,15 @@ function oboModalNext() {
 async function oboModalSendCurrent() {
     if (oboIndex >= smeEmails.length) return;
     
-    // Check if App Password is set for session
-    if (!sessionAppPassword) {
-        showPasswordPopup(() => {
-            oboModalSendCurrent();
-        });
-        return;
-    }
-    
     const email = smeEmails[oboIndex];
     const info = gradersData[email];
+    
+    // Block if SPOC has no credentials configured
+    if (!info.has_credentials) {
+        const spocName = info.spoc_display || info.spoc_email_display || 'this SPOC';
+        logToTerminal(`Cannot send: SMTP credentials are not configured for ${spocName}. Please configure them in the Admin Panel.`, "error");
+        return;
+    }
     
     const to = document.getElementById("obo-modal-to").value;
     const subject = document.getElementById("obo-modal-subject").value;
@@ -1016,50 +1054,46 @@ async function oboModalSendCurrent() {
     btn.disabled = true;
     btn.innerText = "Sending...";
     
-    logToTerminal(`Transmitting email to ${info.name} (${to})...`, "info");
+    logToTerminal(`Sending email to ${info.name} (${to}) via ${info.spoc_email_display}...`, "info");
     
     try {
-        const response = await fetch("/api/send-email", {
+        const response = await fetchWithAuth("/api/send-email", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 to, 
-                cc: getStoredCcEmails(),
                 subject, 
                 body_html,
-                sender_email: getStoredSenderEmail(),
-                sender_password: sessionAppPassword,
-                sender_name: getStoredSigName() || "Team",
                 spoc_email: info.spoc_email_display || ""
+                // Note: sender credentials are loaded server-side from SPOC's Supabase settings
             })
         });
         const result = await response.json();
         
         if (result.status === "success") {
-            logToTerminal(`Successfully transmitted reminder to ${info.name}!`, "success");
-            reportData.push({ name: info.name, email: to, status: "Success", details: "Sent via SMTP", sentAt });
+            logToTerminal(`✓ Email sent to ${info.name} from ${info.spoc_email_display}`, "success");
+            reportData.push({ name: info.name, email: to, status: "Success", details: result.message, sentAt });
             setGraderStatus(email, "Sent");
         } else {
-            logToTerminal(`Send failed: ${result.message}`, "error");
+            logToTerminal(`✗ Send failed: ${result.message}`, "error");
             reportData.push({ name: info.name, email: to, status: "Failed", details: result.message, sentAt });
             setGraderStatus(email, "Failed");
         }
     } catch (err) {
-        logToTerminal(`Connection error during send: ${err.message}`, "error");
+        logToTerminal(`Connection error: ${err.message}`, "error");
         reportData.push({ name: info.name, email: to, status: "Failed", details: err.message, sentAt });
         setGraderStatus(email, "Failed");
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5"></i> Send Email';
-        saveReport();    // persist immediately
-        renderReport();  // update report tab instantly
+        lucide.createIcons();
+        saveReport();
+        renderReport();
         initPreviews();
         oboIndex++;
         oboModalRenderCurrent();
     }
 }
 
-// Navigation logic for obo modal
 
 // Render Final execution report (with date sent)
 function renderReport() {
@@ -1108,7 +1142,6 @@ function renderReport() {
     lucide.createIcons();
 }
     
-
 
 // Tab Switching
 function switchTab(tabId) {
@@ -1196,9 +1229,8 @@ async function submitPasswordPopup() {
     lucide.createIcons();
     
     try {
-        const response = await fetch("/api/verify-email", {
+        const response = await fetchWithAuth("/api/verify-email", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 sender_email: senderEmail, 
                 sender_password: appPwd, 
@@ -1221,6 +1253,31 @@ async function submitPasswordPopup() {
                 cfgStatus.className = "mt-1.5 text-[9px] font-semibold flex items-center gap-1 text-green-400";
                 cfgStatusText.textContent = "✓ Verified — test email sent to your inbox";
                 cfgStatus.classList.remove("hidden");
+            }
+            
+            // Proactively persist the verified app password and sender email to Supabase settings
+            try {
+                const settingsResp = await fetchWithAuth(`/api/settings?email=${currentUser.email}`);
+                const currentSettings = await settingsResp.json();
+                
+                currentSettings.app_password = appPwd;
+                currentSettings.sender_email = senderEmail;
+                
+                await fetchWithAuth("/api/settings", {
+                    method: "POST",
+                    body: JSON.stringify(currentSettings)
+                });
+                
+                // Also update local storage and cookies so the local app state is updated
+                setCookie(LS_APP_PASSWORD, appPwd);
+                localStorage.setItem(LS_APP_PASSWORD, appPwd);
+                setCookie(LS_SENDER_EMAIL, senderEmail);
+                localStorage.setItem(LS_SENDER_EMAIL, senderEmail);
+                
+                logToTerminal("Automatically saved verified SMTP credentials to Supabase settings.", "success");
+            } catch (saveErr) {
+                console.error("Failed to auto-save settings to Supabase:", saveErr);
+                logToTerminal("Verified but failed to auto-save to Supabase.", "warning");
             }
             
             updateSyncButtonState();
@@ -1260,6 +1317,14 @@ function populateSpocFilter() {
     const listElement = document.getElementById("spoc-buttons-list");
     const container = document.getElementById("spoc-filter-container");
     if (!listElement || !container) return;
+    
+    // Hide SPOC filters completely for normal Users
+    const isUser = currentUser && currentUser.role === "User";
+    if (isUser) {
+        container.classList.remove("flex");
+        container.classList.add("hidden");
+        return;
+    }
     
     // Clear list
     listElement.innerHTML = "";
@@ -1343,15 +1408,23 @@ function selectSpocFilter(spoc) {
     if (summarySpan) {
         if (spoc === "all") {
             summarySpan.innerText = "";
+            summarySpan.classList.add("hidden");
         } else {
             let totalSessions = 0;
+            const uniqueProfs = new Set();
             smeEmails.forEach(email => {
                 const grader = gradersData[email];
-                if (grader && grader.sessions) {
-                    totalSessions += grader.sessions.length;
+                if (grader) {
+                    if (grader.email) {
+                        uniqueProfs.add(grader.email.toLowerCase());
+                    }
+                    if (grader.sessions) {
+                        totalSessions += grader.sessions.length;
+                    }
                 }
             });
-            summarySpan.innerText = `(${smeEmails.length} profs, ${totalSessions} sessions assigned)`;
+            summarySpan.innerText = `${uniqueProfs.size} profs, ${totalSessions} session${totalSessions !== 1 ? 's' : ''}`;
+            summarySpan.classList.remove("hidden");
         }
     }
     
@@ -1364,15 +1437,22 @@ function selectSpocFilter(spoc) {
 
 function updateFilteredStats() {
     let totalSessions = 0;
+    const uniqueProfs = new Set();
     smeEmails.forEach(email => {
         const grader = gradersData[email];
-        if (grader && grader.sessions) {
-            totalSessions += grader.sessions.length;
+        if (grader) {
+            if (grader.email) {
+                uniqueProfs.add(grader.email.toLowerCase());
+            }
+            if (grader.sessions) {
+                totalSessions += grader.sessions.length;
+            }
         }
     });
     
-    document.getElementById("stat-sessions").innerText = totalSessions;
-    document.getElementById("stat-graders").innerText = smeEmails.length;
+    document.getElementById("stat-sessions").innerText = smeEmails.length;
+    document.getElementById("stat-sessions-sub").innerText = `${totalSessions} session${totalSessions !== 1 ? 's' : ''}`;
+    document.getElementById("stat-graders").innerText = uniqueProfs.size;
 }
 
 function loadSmeStatuses() {
@@ -1397,24 +1477,6 @@ function setGraderStatus(email, status) {
     }
 }
 
-function resetAllStatuses() {
-    const confirmReset = confirm("Are you sure you want to reset all email statuses and clear the execution report?");
-    if (!confirmReset) return;
-    
-    smeStatuses = {};
-    reportData = [];
-    localStorage.removeItem(LS_SME_STATUSES);
-    localStorage.removeItem(LS_REPORT);
-    
-    // Hide report tab
-    document.getElementById("btn-tab-report").classList.add("hidden");
-    if (currentTab === "tab-report") {
-        switchTab("tab-preview");
-    }
-    
-    initPreviews();
-    logToTerminal("Statuses and reports reset successfully.", "info");
-}
 
 // Bulk Wizard State
 let bulkWizardIndex = 0;
@@ -1473,14 +1535,23 @@ function bulkWizardRenderCurrent() {
         spocBadge.textContent = `SPOC: ${info.spoc_display || 'N/A'}`;
     }
     
-    // Set mock headers
-    document.getElementById("bulk-modal-header-from-name").innerText = getStoredSigName() || "Mukhtar Ali Sayyed";
-    document.getElementById("bulk-modal-header-from-email").innerText = `<${getStoredSenderEmail() || "Mukhtar.sayyed@upgrad.com"}>`;
+    // Set mock headers from actual SPOC details to strictly prevent misleading visual fallback
+    const spocName = info.spoc_display || (info.spoc_email_display ? extract_name_from_email(info.spoc_email_display) : "SPOC");
+    document.getElementById("bulk-modal-header-from-name").innerText = spocName;
     
-    // Set avatar
+    const senderEmailElement = document.getElementById("bulk-modal-header-from-email");
+    if (senderEmailElement) {
+        if (!info.has_credentials) {
+            senderEmailElement.innerHTML = `<span class="text-red-400 font-bold">&lt;${info.spoc_email_display || "Missing Email"}&gt; (Missing SMTP Credentials - Incomplete)</span>`;
+        } else {
+            senderEmailElement.innerText = info.spoc_email_display ? `<${info.spoc_email_display}>` : "";
+        }
+    }
+    
+    // Set avatar from SPOC name
     const avatar = document.getElementById("bulk-modal-header-avatar");
     if (avatar) {
-        const firstLetter = (getStoredSigName() || "Mukhtar Ali Sayyed").trim().charAt(0).toUpperCase();
+        const firstLetter = spocName.trim().charAt(0).toUpperCase();
         avatar.innerText = firstLetter;
     }
     
@@ -1572,39 +1643,44 @@ async function bulkWizardExecute() {
         const info = gradersData[email];
         const sentAt = new Date().toLocaleString();
         
-        consoleLog.innerHTML += `<p class="text-white/60">> Queue [${i+1}/${bulkEmailsList.length}]: Connecting to send to ${info.name}...</p>`;
+        consoleLog.innerHTML += `<p class="text-white/60">> Queue [${i+1}/${bulkEmailsList.length}]: ${info.name} (SPOC: ${info.spoc_display || info.spoc_email_display})...</p>`;
         consoleLog.scrollTop = consoleLog.scrollHeight;
         
         // Update stats progress
         const percent = Math.round(((i) / bulkEmailsList.length) * 100);
         progressText.innerText = `${i} / ${bulkEmailsList.length} Emails (${percent}%)`;
+
+        // Fail if SPOC has no credentials configured (strictly enforce credentials presence)
+        if (!info.has_credentials) {
+            const spocId = info.spoc_display || info.spoc_email_display || 'Unknown SPOC';
+            consoleLog.innerHTML += `<p class="text-red-400 font-bold">› INCOMPLETE: No SMTP credentials for SPOC ${spocId}. Email NOT sent. Please configure credentials in Admin Panel.</p>`;
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+            reportData.push({ name: info.name, email: info.email, status: "Failed", details: `Incomplete: Missing SMTP credentials for SPOC ${spocId}`, sentAt });
+            setGraderStatus(email, "Failed");
+            continue;
+        }
         
         try {
-            const storedCc = getStoredCcEmails();
             const payload = {
                 to: info.email,
-                cc: storedCc,
                 subject: info.subject,
                 body_html: info.body_html,
-                sender_email: getStoredSenderEmail(),
-                sender_password: sessionAppPassword,
-                sender_name: getStoredSigName() || "Team",
                 spoc_email: info.spoc_email_display || ""
+                // Credentials are resolved server-side from SPOC's Supabase settings
             };
             
-            const response = await fetch("/api/send-email", {
+            const response = await fetchWithAuth("/api/send-email", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
             const result = await response.json();
             
             if (result.status === "success") {
-                consoleLog.innerHTML += `<p class="text-[#4ade80]">› Success: Email transmitted to ${info.email}.</p>`;
-                reportData.push({ name: info.name, email: info.email, status: "Success", details: "Bulk sent", sentAt });
+                consoleLog.innerHTML += `<p class="text-[#4ade80]">› Sent: ${info.email} ← from ${info.spoc_email_display}</p>`;
+                reportData.push({ name: info.name, email: info.email, status: "Success", details: result.message, sentAt });
                 setGraderStatus(email, "Sent");
             } else {
-                consoleLog.innerHTML += `<p class="text-[#f87171]">› Failure: ${result.message}</p>`;
+                consoleLog.innerHTML += `<p class="text-[#f87171]">› Failed: ${result.message}</p>`;
                 reportData.push({ name: info.name, email: info.email, status: "Failed", details: result.message, sentAt });
                 setGraderStatus(email, "Failed");
             }
@@ -1643,4 +1719,939 @@ function bulkWizardViewReport() {
     
     renderReport();
     switchTab("tab-report");
+}
+
+// ── AUTHENTICATION & SIDEBAR NAVIGATION INTEGRATION ──
+
+function getAuthHeaders() {
+    const token = localStorage.getItem("upgrad_token");
+    return token ? { "Authorization": `Bearer ${token}` } : {};
+}
+
+async function fetchWithAuth(url, options = {}) {
+    if (!options.headers) {
+        options.headers = {};
+    }
+    const authHeaders = getAuthHeaders();
+    Object.assign(options.headers, authHeaders);
+    if (!options.headers["Content-Type"] && !(options.body instanceof FormData)) {
+        options.headers["Content-Type"] = "application/json";
+    }
+    return fetch(url, options);
+}
+
+async function checkSession() {
+    const token = localStorage.getItem("upgrad_token");
+    if (!token) {
+        showLoginOverlay();
+        return;
+    }
+    try {
+        const response = await fetchWithAuth("/api/auth/session");
+        const data = await response.json();
+        if (data.status === "success") {
+            currentUser = data.user;
+            
+            // Populate profile info
+            const firstLetter = currentUser.name.trim().charAt(0).toUpperCase();
+            document.getElementById("sb-profile-avatar").innerText = firstLetter;
+            document.getElementById("sb-profile-name").innerText = currentUser.name;
+            document.getElementById("sb-profile-role").innerText = currentUser.role;
+            
+            // Show/hide admin sidebar tab based on roles
+            const adminNavBtn = document.getElementById("sb-nav-admin-panel");
+            if (currentUser.role === "Admin" || currentUser.role === "Co-Admin") {
+                adminNavBtn.classList.remove("hidden");
+            } else {
+                adminNavBtn.classList.add("hidden");
+            }
+            
+            // Role Based UI tweaks (disable/hide bulk send for regular users)
+            const bulkBtn = document.getElementById("btn-start-bulk");
+            if (currentUser.role === "User") {
+                if (bulkBtn) bulkBtn.classList.add("hidden");
+            } else {
+                if (bulkBtn) bulkBtn.classList.remove("hidden");
+            }
+            
+            // Hide login screen and show main content
+            hideLoginOverlay();
+            
+            // Load initial config
+            fetchConfig();
+            fetchSheetDates();
+            
+            // Auto open settings if SMTP settings are not configured yet
+            const personalSettings = await fetchWithAuth(`/api/settings?email=${currentUser.email}`);
+            const pData = await personalSettings.json();
+            if (!pData.sender_email || !pData.app_password) {
+                openSettingsModal();
+            } else {
+                // Settings are already configured! Sync them to local state so the user doesn't need to verify again
+                sessionAppPassword = pData.app_password;
+                setCookie(LS_SENDER_EMAIL, pData.sender_email);
+                localStorage.setItem(LS_SENDER_EMAIL, pData.sender_email);
+                setCookie(LS_APP_PASSWORD, pData.app_password);
+                localStorage.setItem(LS_APP_PASSWORD, pData.app_password);
+                setCookie(LS_CC_EMAILS, pData.cc_emails || "");
+                localStorage.setItem(LS_CC_EMAILS, pData.cc_emails || "");
+                setCookie(LS_SIG_NAME, pData.signature_name || "");
+                localStorage.setItem(LS_SIG_NAME, pData.signature_name || "");
+                setCookie(LS_SIG_TITLE, pData.signature_title || "");
+                localStorage.setItem(LS_SIG_TITLE, pData.signature_title || "");
+                setCookie(LS_SIG_PHONE, pData.signature_phone || "");
+                localStorage.setItem(LS_SIG_PHONE, pData.signature_phone || "");
+                setCookie(LS_SIG_EMAIL, pData.signature_email || "");
+                localStorage.setItem(LS_SIG_EMAIL, pData.signature_email || "");
+                
+                markVerified();
+            }
+        } else {
+            showLoginOverlay();
+        }
+    } catch (err) {
+        console.error("Session check error:", err);
+        showLoginOverlay();
+    }
+}
+
+function showLoginOverlay() {
+    const splash = document.getElementById("splash-overlay");
+    if (splash) splash.classList.add("hidden");
+    
+    document.getElementById("login-overlay").classList.remove("hidden");
+    document.getElementById("app-sidebar").classList.add("hidden");
+    document.getElementById("main-content-wrapper").classList.add("pl-0");
+}
+
+function hideLoginOverlay() {
+    const splash = document.getElementById("splash-overlay");
+    if (splash) splash.classList.add("hidden");
+    
+    document.getElementById("login-overlay").classList.add("hidden");
+    document.getElementById("app-sidebar").classList.remove("hidden");
+    document.getElementById("main-content-wrapper").classList.remove("pl-0");
+}
+
+// Password toggle functionality handled by global togglePasswordVisibility
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    const errorEl = document.getElementById("login-error");
+    
+    errorEl.classList.add("hidden");
+    errorEl.innerText = "";
+    
+    try {
+        const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (data.status === "success") {
+            localStorage.setItem("upgrad_token", data.token);
+            await checkSession();
+        } else {
+            errorEl.innerText = data.message || "Invalid email or password.";
+            errorEl.classList.remove("hidden");
+        }
+    } catch (err) {
+        errorEl.innerText = "Error connecting to authentication service.";
+        errorEl.classList.remove("hidden");
+    }
+}
+
+async function handleLogout() {
+    try {
+        await fetchWithAuth("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+        console.error("Logout failed:", e);
+    }
+    localStorage.removeItem("upgrad_token");
+    currentUser = null;
+    showLoginOverlay();
+}
+
+function navigateSidebar(viewName) {
+    const liveSessionsView = document.getElementById("live-sessions-view");
+    const adminPanelView = document.getElementById("admin-panel-view");
+    const navLiveSessions = document.getElementById("sb-nav-live-sessions");
+    const navAdminPanel = document.getElementById("sb-nav-admin-panel");
+    
+    if (viewName === "live-sessions") {
+        liveSessionsView.classList.remove("hidden");
+        adminPanelView.classList.add("hidden");
+        
+        navLiveSessions.className = "w-full flex items-center gap-3 px-4 py-3 text-xs font-semibold rounded-xl transition-all cursor-pointer bg-[#EE2C3C] text-white shadow-md shadow-[#EE2C3C]/10 border border-transparent btn-press";
+        navAdminPanel.className = "w-full flex items-center gap-3 px-4 py-3 text-xs font-semibold rounded-xl transition-all cursor-pointer text-white/50 hover:text-white/85 hover:bg-white/[0.03] border border-transparent btn-press";
+    } else if (viewName === "admin-panel") {
+        adminPanelView.classList.remove("hidden");
+        liveSessionsView.classList.add("hidden");
+        
+        navAdminPanel.className = "w-full flex items-center gap-3 px-4 py-3 text-xs font-semibold rounded-xl transition-all cursor-pointer bg-[#EE2C3C] text-white shadow-md shadow-[#EE2C3C]/10 border border-transparent btn-press";
+        navLiveSessions.className = "w-full flex items-center gap-3 px-4 py-3 text-xs font-semibold rounded-xl transition-all cursor-pointer text-white/50 hover:text-white/85 hover:bg-white/[0.03] border border-transparent btn-press";
+        
+        switchAdminTab("user-mgr");
+    }
+}
+
+function switchAdminTab(tabId) {
+    const tabs = ["user-mgr", "smtp-mgr", "logs-mgr", "stats-mgr"];
+    tabs.forEach(t => {
+        const pane = document.getElementById(`panel-${t}`);
+        const btn = document.getElementById(`admin-tab-${t}`);
+        if (pane) pane.classList.add("hidden");
+        if (btn) {
+            btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white/60 hover:text-white transition-all cursor-pointer";
+        }
+    });
+    
+    const activePane = document.getElementById(`panel-${tabId}`);
+    const activeBtn = document.getElementById(`admin-tab-${tabId}`);
+    if (activePane) activePane.classList.remove("hidden");
+    if (activeBtn) {
+        activeBtn.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#EE2C3C] transition-all cursor-pointer";
+    }
+    
+    if (tabId === "user-mgr") {
+        loadUsers();
+    } else if (tabId === "smtp-mgr") {
+        loadSmtpConfigs();
+    } else if (tabId === "logs-mgr") {
+        loadLogs();
+    } else if (tabId === "stats-mgr") {
+        loadDashboardStats("today");
+    }
+}
+
+// ── USER MANAGEMENT FUNCTIONS ──
+async function loadUsers() {
+    try {
+        const response = await fetchWithAuth("/api/admin/users");
+        const data = await response.json();
+        const tbody = document.getElementById("admin-users-table-body");
+        tbody.innerHTML = "";
+        
+        if (data.status === "success") {
+            data.users.forEach(u => {
+                const tr = document.createElement("tr");
+                tr.className = "border-b border-white/5 hover:bg-white/[0.01]";
+                
+                const isTargetAdmin = u.role === "Admin";
+                const isCurrentAdmin = currentUser.role === "Admin";
+                const canModify = isCurrentAdmin || (!isTargetAdmin);
+                const canDelete = isCurrentAdmin && (!isTargetAdmin) && (u.id !== currentUser.id);
+                
+                const actionsHtml = `
+                    <div class="flex justify-end gap-2">
+                        <button onclick="openUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})" 
+                            ${canModify ? "" : "disabled"} 
+                            class="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[10px] font-semibold rounded-lg border border-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all btn-press cursor-pointer">
+                            Edit
+                        </button>
+                        <button onclick="deleteUser('${u.id}', '${u.name.replace(/'/g, "\\'")}')" 
+                            ${canDelete ? "" : "disabled"} 
+                            class="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-[10px] font-semibold rounded-lg border border-red-500/15 disabled:opacity-30 disabled:pointer-events-none transition-all btn-press cursor-pointer">
+                            Delete
+                        </button>
+                    </div>
+                `;
+                
+                tr.innerHTML = `
+                    <td class="p-3.5 pl-5 font-semibold text-white">${u.name}</td>
+                    <td class="p-3.5 text-white/60 font-mono">${u.email}</td>
+                    <td class="p-3.5">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold font-mono tracking-wide ${
+                            u.role === 'Admin' ? 'bg-[#EE2C3C]/10 text-[#EE2C3C] border border-[#EE2C3C]/15' : 
+                            u.role === 'Co-Admin' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 
+                            'bg-green-500/10 text-green-400 border border-green-500/20'
+                        }">
+                            ${u.role}
+                        </span>
+                    </td>
+                    <td class="p-3.5 pr-5 text-right">${actionsHtml}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (err) {
+        console.error("Failed to load users:", err);
+    }
+}
+
+function openUserModal(user) {
+    const titleEl = document.getElementById("user-modal-title");
+    const idInput = document.getElementById("user-modal-id");
+    const nameInput = document.getElementById("user-modal-name");
+    const emailInput = document.getElementById("user-modal-email");
+    const passInput = document.getElementById("user-modal-password");
+    const passLabel = document.getElementById("user-modal-pass-label");
+    const roleSelect = document.getElementById("user-modal-role");
+    
+    idInput.value = "";
+    nameInput.value = "";
+    emailInput.value = "";
+    passInput.value = "";
+    roleSelect.value = "User";
+    roleSelect.disabled = false;
+    
+    const hasAdminOpt = Array.from(roleSelect.options).some(o => o.value === "Admin");
+    if (currentUser.role === "Admin") {
+        if (!hasAdminOpt) {
+            const opt = document.createElement("option");
+            opt.value = "Admin";
+            opt.text = "Admin (Full System Access)";
+            opt.className = "bg-[#121212] text-white";
+            roleSelect.appendChild(opt);
+        }
+    } else {
+        if (hasAdminOpt) {
+            for (let i = 0; i < roleSelect.options.length; i++) {
+                if (roleSelect.options[i].value === "Admin") {
+                    roleSelect.remove(i);
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (!user) {
+        titleEl.textContent = "Create New User";
+        emailInput.readOnly = false;
+        emailInput.classList.remove("opacity-60", "bg-black/50");
+        passInput.required = true;
+        passLabel.innerHTML = 'Password';
+        passInput.placeholder = "Enter password";
+    } else {
+        titleEl.textContent = "Edit User";
+        idInput.value = user.id;
+        nameInput.value = user.name;
+        emailInput.value = user.email;
+        emailInput.readOnly = true;
+        emailInput.classList.add("opacity-60", "bg-black/50");
+        passInput.required = false;
+        passLabel.innerHTML = 'Password <span class="text-white/30 font-light">(Leave blank to keep current)</span>';
+        passInput.placeholder = "••••••••";
+        roleSelect.value = user.role;
+        
+        if (user.id === currentUser.id) {
+            roleSelect.disabled = true;
+        } else {
+            roleSelect.disabled = false;
+        }
+    }
+    
+    document.getElementById("user-modal").classList.remove("hidden");
+    lucide.createIcons();
+}
+
+function closeUserModal() {
+    document.getElementById("user-modal").classList.add("hidden");
+}
+
+document.getElementById("user-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = document.getElementById("user-modal-id").value;
+    const name = document.getElementById("user-modal-name").value.trim();
+    const email = document.getElementById("user-modal-email").value.trim();
+    const password = document.getElementById("user-modal-password").value;
+    const role = document.getElementById("user-modal-role").value;
+    
+    const isEdit = !!id;
+    const url = isEdit ? `/api/admin/users/${id}` : "/api/admin/users";
+    const method = isEdit ? "PUT" : "POST";
+    
+    const payload = { name, role };
+    if (!isEdit) payload.email = email;
+    if (password) payload.password = password;
+    
+    try {
+        const response = await fetchWithAuth(url, {
+            method,
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (data.status === "success") {
+            alert(data.message || "User saved successfully.");
+            closeUserModal();
+            loadUsers();
+        } else {
+            alert("Error: " + data.message);
+        }
+    } catch (err) {
+        alert("Request failed: " + err.message);
+    }
+});
+
+async function deleteUser(id, name) {
+    const confirmDel = confirm(`Are you sure you want to delete user: ${name}?`);
+    if (!confirmDel) return;
+    
+    try {
+        const response = await fetchWithAuth(`/api/admin/users/${id}`, { method: "DELETE" });
+        const data = await response.json();
+        if (data.status === "success") {
+            alert("User deleted successfully.");
+            loadUsers();
+        } else {
+            alert("Error: " + data.message);
+        }
+    } catch (err) {
+        alert("Request failed: " + err.message);
+    }
+}
+
+// ── SMTP MANAGEMENT FUNCTIONS ──
+async function loadSmtpConfigs() {
+    try {
+        const response = await fetchWithAuth("/api/admin/users");
+        const data = await response.json();
+        const tbody = document.getElementById("admin-smtp-table-body");
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-white/30 text-xs"><i data-lucide="loader" class="w-4 h-4 animate-spin inline-block mr-2"></i>Loading configurations...</td></tr>`;
+        lucide.createIcons();
+        
+        if (data.status === "success" && data.users.length > 0) {
+            // Fetch all user settings in parallel for performance
+            const settingsPromises = data.users.map(u =>
+                fetchWithAuth(`/api/settings?email=${encodeURIComponent(u.email)}`)
+                    .then(r => r.json())
+                    .catch(() => ({}))
+            );
+            const allSettings = await Promise.all(settingsPromises);
+            
+            tbody.innerHTML = "";
+            data.users.forEach((u, idx) => {
+                const sData = allSettings[idx] || {};
+                
+                const tr = document.createElement("tr");
+                tr.className = "border-b border-white/5 hover:bg-white/[0.01]";
+                
+                const isConfigured = !!sData.sender_email;
+                // Mask app password: show bullets if set
+                const maskedPwd = sData.app_password 
+                    ? `<span class="bg-white/5 px-2 py-1 rounded text-white/80 font-mono tracking-[0.3em]">●●●●●●●●</span>` 
+                    : '<span class="text-white/20 italic">—</span>';
+                
+                tr.innerHTML = `
+                    <td class="p-3.5 pl-5 font-semibold text-white">${u.name}</td>
+                    <td class="p-3.5 text-white/60 font-mono">${
+                        isConfigured ? sData.sender_email : '<span class="text-amber-400/50 italic text-[10px]">Not Configured</span>'
+                    }</td>
+                    <td class="p-3.5 text-white/60 font-mono">
+                        ${maskedPwd}
+                    </td>
+                    <td class="p-3.5 text-white/60">
+                        ${sData.signature_name ? `<div class="font-medium text-white">${sData.signature_name}</div><div class="text-[9.5px] text-white/40">${sData.signature_title || ''}</div>` : '<span class="text-white/20 italic">—</span>'}
+                    </td>
+                    <td class="p-3.5 text-white/50 font-mono">${sData.cc_emails || '—'}</td>
+                    <td class="p-3.5 pr-5 text-right">
+                        <button onclick="openAdminSettingsModal('${u.email}', '${u.name.replace(/'/g, "\\'")}')" class="px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 text-[10px] font-semibold rounded-lg border border-indigo-500/15 transition-all btn-press cursor-pointer flex items-center gap-1 ml-auto">
+                            <i data-lucide="pencil" class="w-3 h-3"></i> Edit
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        } else {
+            tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-white/30 text-xs">No users found.</td></tr>`;
+        }
+    } catch (err) {
+        console.error("Failed to load SMTP configs:", err);
+        const tbody = document.getElementById("admin-smtp-table-body");
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-400/60 text-xs">Failed to load configurations.</td></tr>`;
+    }
+}
+
+async function openAdminSettingsModal(email, name) {
+    document.getElementById("admin-settings-title").textContent = `Edit SMTP Config: ${name}`;
+    document.getElementById("admin-settings-email").value = email;
+    
+    document.getElementById("admin-cfg-sender-email").value = "";
+    document.getElementById("admin-cfg-cc-emails").value = "";
+    document.getElementById("admin-cfg-app-password").value = "";
+    document.getElementById("admin-cfg-sig-name").value = "";
+    document.getElementById("admin-cfg-sig-title").value = "";
+    document.getElementById("admin-cfg-sig-phone").value = "";
+    document.getElementById("admin-cfg-sig-email").value = "";
+    
+    const addr = document.getElementById("admin-cfg-sig-addr");
+    addr.value = "3rd Floor, CTS-796-A | Fleet Bldg. Opp, Marol Fire Station, Marol, Andheri (East)| Mumbai MH 400059";
+    addr.readOnly = true;
+    
+    try {
+        const response = await fetchWithAuth(`/api/settings?email=${encodeURIComponent(email)}`);
+        const data = await response.json();
+        
+        document.getElementById("admin-cfg-sender-email").value = data.sender_email || "";
+        document.getElementById("admin-cfg-cc-emails").value = data.cc_emails || "";
+        document.getElementById("admin-cfg-app-password").value = data.app_password || "";
+        document.getElementById("admin-cfg-sig-name").value = data.signature_name || name;
+        document.getElementById("admin-cfg-sig-title").value = data.signature_title || "Associate Program Manager";
+        document.getElementById("admin-cfg-sig-phone").value = data.signature_phone || "";
+        document.getElementById("admin-cfg-sig-email").value = data.signature_email || email;
+    } catch (err) {
+        console.error("Failed to fetch settings:", err);
+    }
+    
+    document.getElementById("admin-settings-modal").classList.remove("hidden");
+    lucide.createIcons();
+}
+
+function closeAdminSettingsModal() {
+    document.getElementById("admin-settings-modal").classList.add("hidden");
+}
+
+document.getElementById("admin-settings-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("admin-settings-email").value;
+    const sender_email = document.getElementById("admin-cfg-sender-email").value.trim();
+    const cc_emails = document.getElementById("admin-cfg-cc-emails").value.trim();
+    const app_password = document.getElementById("admin-cfg-app-password").value.trim();
+    const signature_name = document.getElementById("admin-cfg-sig-name").value.trim();
+    const signature_title = document.getElementById("admin-cfg-sig-title").value.trim();
+    const signature_address = document.getElementById("admin-cfg-sig-addr").value.trim();
+    const signature_phone = document.getElementById("admin-cfg-sig-phone").value.trim();
+    const signature_email = document.getElementById("admin-cfg-sig-email").value.trim();
+    
+    const payload = {
+        email,
+        sender_email,
+        cc_emails,
+        app_password,
+        signature_name,
+        signature_title,
+        signature_address,
+        signature_phone,
+        signature_email,
+        test_mode: false  // Always live mode
+    };
+    
+    const saveBtn = e.target.querySelector("button[type='submit']");
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving..."; }
+    
+    try {
+        const response = await fetchWithAuth("/api/settings", {
+            method: "POST",
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (data.status === "success") {
+            closeAdminSettingsModal();
+            loadSmtpConfigs();
+            logToTerminal(`SMTP config updated for ${signature_name || email}.`, "success");
+        } else {
+            alert("Error saving settings: " + data.message);
+        }
+    } catch (err) {
+        alert("Request failed: " + err.message);
+    } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Save Configurations"; }
+    }
+});
+
+// ── ACTIVITY LOGS FUNCTIONS ──
+async function loadLogs() {
+    try {
+        const response = await fetchWithAuth("/api/admin/logs");
+        const data = await response.json();
+        if (data.status === "success") {
+            allLogs = data.logs;
+            filterLogs();
+        }
+    } catch (err) {
+        console.error("Failed to load activity logs:", err);
+    }
+}
+
+function filterLogs(resetPage = true) {
+    if (resetPage === true) {
+        currentLogsPage = 1;
+    }
+
+    const searchVal = document.getElementById("admin-logs-search").value.toLowerCase();
+    const typeVal = document.getElementById("admin-logs-type-filter").value;
+    const consoleEl = document.getElementById("admin-logs-console");
+    const infoEl = document.getElementById("admin-logs-pagination-info");
+    const buttonsEl = document.getElementById("admin-logs-pagination-buttons");
+    
+    consoleEl.innerHTML = "";
+    if (buttonsEl) buttonsEl.innerHTML = "";
+    
+    let filtered = allLogs;
+    
+    if (typeVal !== "all") {
+        filtered = filtered.filter(l => l.activity_type === typeVal);
+    }
+    
+    if (searchVal) {
+        filtered = filtered.filter(l => 
+            (l.user_name && l.user_name.toLowerCase().includes(searchVal)) ||
+            (l.email && l.email.toLowerCase().includes(searchVal)) ||
+            (l.activity_details && l.activity_details.toLowerCase().includes(searchVal)) ||
+            (l.activity_type && l.activity_type.toLowerCase().includes(searchVal))
+        );
+    }
+    
+    const totalLogs = filtered.length;
+    
+    if (totalLogs === 0) {
+        consoleEl.innerHTML = "<p class='text-white/30 italic text-center py-4'>No matching log entries found.</p>";
+        if (infoEl) infoEl.innerText = "Showing 0-0 of 0 logs";
+        return;
+    }
+    
+    const totalPages = Math.ceil(totalLogs / logsPerPage) || 1;
+    if (currentLogsPage > totalPages) currentLogsPage = totalPages;
+    if (currentLogsPage < 1) currentLogsPage = 1;
+    
+    const startIndex = (currentLogsPage - 1) * logsPerPage;
+    const endIndex = Math.min(startIndex + logsPerPage, totalLogs);
+    
+    if (infoEl) {
+        infoEl.innerText = `Showing ${startIndex + 1}-${endIndex} of ${totalLogs} logs`;
+    }
+    
+    const pageLogs = filtered.slice(startIndex, endIndex);
+    
+    pageLogs.forEach(log => {
+        const date = new Date(log.timestamp);
+        const formattedTime = date.toLocaleString();
+        
+        const logLine = document.createElement("div");
+        logLine.className = "py-1.5 border-b border-white/[0.04] last:border-0 flex justify-between items-start gap-4 hover:bg-white/[0.01]";
+        
+        let typeColor = "text-[#EE2C3C]";
+        if (log.activity_type.includes("Login")) typeColor = "text-green-400";
+        if (log.activity_type.includes("Failed")) typeColor = "text-red-400";
+        if (log.activity_type.includes("Sync")) typeColor = "text-indigo-400";
+        
+        logLine.innerHTML = `
+            <div class="min-w-0 flex-1">
+                <span class="text-white/20 select-none">[${formattedTime}]</span>
+                <span class="${typeColor} font-bold select-none">[${log.activity_type}]</span>
+                <span class="text-white/80">${log.activity_details}</span>
+            </div>
+            <span class="text-white/30 text-[9px] font-semibold flex-shrink-0 bg-white/5 px-2 py-0.5 rounded">${
+                log.user_name ? `${log.user_name} (${log.role})` : 'System'
+            }</span>
+        `;
+        consoleEl.appendChild(logLine);
+    });
+    
+    // Render pagination buttons
+    if (buttonsEl) {
+        // Prev button
+        const prevBtn = document.createElement("button");
+        prevBtn.type = "button";
+        prevBtn.disabled = currentLogsPage === 1;
+        prevBtn.className = currentLogsPage === 1
+            ? "px-2 py-1 bg-white/[0.02] text-white/20 rounded border border-white/[0.02] cursor-not-allowed text-[9px]"
+            : "px-2 py-1 bg-white/5 hover:bg-white/10 rounded border border-white/5 cursor-pointer text-[9px] font-semibold transition-all btn-press text-white/85";
+        prevBtn.innerText = "Prev";
+        prevBtn.onclick = () => goToLogsPage(currentLogsPage - 1);
+        buttonsEl.appendChild(prevBtn);
+        
+        // Page numbers
+        let startPage = Math.max(1, currentLogsPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        
+        for (let p = startPage; p <= endPage; p++) {
+            const pBtn = document.createElement("button");
+            pBtn.type = "button";
+            pBtn.className = p === currentLogsPage
+                ? "px-2.5 py-1 bg-[#EE2C3C] text-white rounded border border-[#EE2C3C] text-[9px] font-bold btn-press cursor-pointer"
+                : "px-2.5 py-1 bg-white/5 hover:bg-white/10 rounded border border-white/5 cursor-pointer text-[9px] font-semibold transition-all btn-press text-white/80";
+            pBtn.innerText = p;
+            pBtn.onclick = () => goToLogsPage(p);
+            buttonsEl.appendChild(pBtn);
+        }
+        
+        // Next button
+        const nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.disabled = currentLogsPage === totalPages;
+        nextBtn.className = currentLogsPage === totalPages
+            ? "px-2 py-1 bg-white/[0.02] text-white/20 rounded border border-white/[0.02] cursor-not-allowed text-[9px]"
+            : "px-2 py-1 bg-white/5 hover:bg-white/10 rounded border border-white/5 cursor-pointer text-[9px] font-semibold transition-all btn-press text-white/85";
+        nextBtn.innerText = "Next";
+        nextBtn.onclick = () => goToLogsPage(currentLogsPage + 1);
+        buttonsEl.appendChild(nextBtn);
+    }
+}
+
+function goToLogsPage(page) {
+    currentLogsPage = page;
+    filterLogs(false);
+}
+
+async function clearSystemLogs() {
+    const confirmClear = confirm("Are you sure you want to permanently clear all system activity logs? Only Admin can do this.");
+    if (!confirmClear) return;
+    
+    try {
+        const response = await fetchWithAuth("/api/admin/logs", { method: "DELETE" });
+        const data = await response.json();
+        if (data.status === "success") {
+            alert("Logs cleared successfully.");
+            loadLogs();
+        } else {
+            alert("Error: " + data.message);
+        }
+    } catch (err) {
+        alert("Request failed: " + err.message);
+    }
+}
+
+// ── DASHBOARD ANALYTICS FUNCTIONS ──
+function filterDashboardStats(range) {
+    loadDashboardStats(range);
+}
+
+async function loadDashboardStats(range = "today") {
+    const ranges = ["today", "weekly"];
+    ranges.forEach(r => {
+        const btn = document.getElementById(`dash-filter-${r}`);
+        if (btn) {
+            btn.className = r === range 
+                ? "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold text-white bg-[#EE2C3C] transition-all cursor-pointer" 
+                : "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold text-white/60 hover:text-white transition-all cursor-pointer";
+        }
+    });
+    
+    try {
+        let url = `/api/admin/dashboard-stats?range=${range}`;
+        if (range === "custom") {
+            const startVal = document.getElementById("dash-start-date").value;
+            const endVal = document.getElementById("dash-end-date").value;
+            if (!startVal || !endVal) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+            url += `&start_date=${startVal}&end_date=${endVal}`;
+        }
+        const response = await fetchWithAuth(url);
+        const data = await response.json();
+            // Save dashboard history globally
+            dashboardHistory = data.history || [];
+            
+            const m = data.metrics;
+            document.getElementById("dash-stat-total").innerText = m.total_emails;
+            document.getElementById("dash-stat-sent").innerText = m.total_sent;
+            document.getElementById("dash-stat-failed").innerText = m.total_failed;
+            document.getElementById("dash-stat-rate").innerText = m.success_rate + "%";
+            
+            document.getElementById("dash-users-total").innerText = m.total_users;
+            document.getElementById("dash-users-coadmins").innerText = m.active_coadmins;
+            document.getElementById("dash-users-active").innerText = m.active_users;
+            
+            document.getElementById("dash-act-syncs").innerText = m.sync_operations;
+            document.getElementById("dash-act-drafts").innerText = m.draft_generations;
+            document.getElementById("dash-act-bulks").innerText = m.bulk_sends;
+            
+            const tbody = document.getElementById("admin-spoc-stats-body");
+            tbody.innerHTML = "";
+            
+            if (data.spoc_stats.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='5' class='p-4 text-center text-white/30 italic'>No email transmission history.</td></tr>";
+            } else {
+                data.spoc_stats.forEach(spoc => {
+                    const total = spoc.sent + spoc.failed;
+                    const rate = total > 0 ? Math.round((spoc.sent / total) * 100) : 100;
+                    
+                    const tr = document.createElement("tr");
+                    tr.className = "border-b border-white/5 hover:bg-white/[0.02] cursor-pointer transition-colors group";
+                    tr.title = `Click to view transmission history for ${spoc.name}`;
+                    tr.onclick = () => showSpocHistoryModal(spoc.email, spoc.name);
+                    tr.innerHTML = `
+                        <td class="p-2.5 pl-4 font-semibold text-white flex items-center gap-1.5">
+                            <i data-lucide="eye" class="w-3.5 h-3.5 text-white/20 group-hover:text-white/60"></i>
+                            <span>${spoc.name}</span>
+                        </td>
+                        <td class="p-2.5 text-white/50 font-mono">${spoc.email}</td>
+                        <td class="p-2.5 text-green-400 font-bold">${spoc.sent}</td>
+                        <td class="p-2.5 text-red-400 font-bold">${spoc.failed}</td>
+                        <td class="p-2.5 pr-4 text-right">
+                            <span class="font-bold text-white font-mono">${rate}%</span>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            lucide.createIcons();
+    } catch (err) {
+        console.error("Failed to load dashboard metrics:", err);
+    }
+}
+
+async function resetDashboardMetrics() {
+    const confirmReset = confirm("Are you sure you want to reset all system dashboard metrics? This will clear all logged email history. Only Admins can do this.");
+    if (!confirmReset) return;
+    
+    try {
+        const response = await fetchWithAuth("/api/admin/dashboard-stats", { method: "DELETE" });
+        const data = await response.json();
+        if (data.status === "success") {
+            alert("Dashboard metrics reset successfully.");
+            loadDashboardStats("today");
+        } else {
+            alert("Error: " + data.message);
+        }
+    } catch (err) {
+        alert("Request failed: " + err.message);
+    }
+}
+
+// Initialize on page load
+document.addEventListener("DOMContentLoaded", () => {
+    initTheme();
+    checkSession();
+    clearTerminal();
+    loadSmeStatuses();
+    sessionAppPassword = getStoredAppPassword();
+    initPreviews();
+    loadReport();
+    
+    const startPop = document.getElementById("start-datepicker");
+    if (startPop) startPop.addEventListener("click", (e) => e.stopPropagation());
+    const endPop = document.getElementById("end-datepicker");
+    if (endPop) endPop.addEventListener("click", (e) => e.stopPropagation());
+    
+    document.getElementById("login-form").addEventListener("submit", handleLogin);
+    
+    const cfgPwd = document.getElementById("cfg-app-password");
+    if (cfgPwd) {
+        cfgPwd.addEventListener("input", () => {
+            const verifyStatus = document.getElementById("verify-status");
+            if (verifyStatus) verifyStatus.classList.add("hidden");
+        });
+    }
+    const cfgSender = document.getElementById("cfg-sender-email");
+    if (cfgSender) {
+        cfgSender.addEventListener("input", () => {
+            const verifyStatus = document.getElementById("verify-status");
+            if (verifyStatus) verifyStatus.classList.add("hidden");
+        });
+    }
+});
+
+// SPOC History Modal functions
+function formatTimestamp(tsStr) {
+    if (!tsStr || tsStr === "N/A") return "N/A";
+    try {
+        const date = new Date(tsStr);
+        if (isNaN(date.getTime())) return tsStr;
+        
+        const day = date.getDate();
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const month = months[date.getMonth()];
+        const year = date.getFullYear();
+        
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        
+        return `${day} ${month} ${year}, ${hours}:${minutes} ${ampm}`;
+    } catch (e) {
+        return tsStr;
+    }
+}
+
+function showSpocHistoryModal(email, name) {
+    const modal = document.getElementById("spoc-history-modal");
+    if (!modal) return;
+    
+    document.getElementById("spoc-history-title").innerText = `Transmission History — ${name}`;
+    document.getElementById("spoc-history-email").innerText = email;
+    
+    // Filter dashboard history for this SPOC
+    const spocHistory = dashboardHistory.filter(h => h.spoc_email && h.spoc_email.toLowerCase() === email.toLowerCase());
+    
+    // Calculate stats
+    const total = spocHistory.length;
+    const success = spocHistory.filter(h => h.status === "Success").length;
+    const failed = total - success;
+    
+    document.getElementById("spoc-history-stat-total").innerText = total;
+    document.getElementById("spoc-history-stat-success").innerText = success;
+    document.getElementById("spoc-history-stat-failed").innerText = failed;
+    
+    const tbody = document.getElementById("spoc-history-table-body");
+    tbody.innerHTML = "";
+    
+    if (spocHistory.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-white/30 italic">No transmissions found for this SPOC.</td></tr>`;
+    } else {
+        spocHistory.forEach(h => {
+            const tr = document.createElement("tr");
+            tr.className = "border-b border-white/5 hover:bg-white/[0.01]";
+            
+            let statusClass = "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
+            if (h.status === "Success") statusClass = "bg-green-500/10 text-green-400 border border-green-500/20";
+            if (h.status === "Failed") statusClass = "bg-red-500/10 text-red-400 border border-red-500/20";
+            
+            const timeStr = formatTimestamp(h.sent_at || h.created_at);
+            
+            tr.innerHTML = `
+                <td class="p-3 pl-4 font-semibold text-white truncate max-w-[110px] sm:max-w-[180px]" title="${h.recipient_email}">${h.recipient_email}</td>
+                <td class="p-3 text-white/60 truncate max-w-[130px] sm:max-w-[280px]" title="${h.subject}">${h.subject}</td>
+                <td class="p-3">
+                    <span class="${statusClass} text-[8px] px-2 py-0.5 rounded-full font-mono font-semibold uppercase">${h.status}</span>
+                </td>
+                <td class="p-3 pr-4 text-right font-mono text-white/40 text-[9px] whitespace-nowrap">${timeStr}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+    
+    modal.classList.remove("hidden");
+    lucide.createIcons();
+}
+
+function closeSpocHistoryModal() {
+    const modal = document.getElementById("spoc-history-modal");
+    if (modal) modal.classList.add("hidden");
+}
+
+// Light/Dark Theme controls
+function initTheme() {
+    const savedTheme = localStorage.getItem("theme") || "dark";
+    if (savedTheme === "light") {
+        document.documentElement.classList.remove("dark");
+        document.documentElement.classList.add("light");
+        
+        const sunIcon = document.getElementById("theme-sun-icon");
+        const moonIcon = document.getElementById("theme-moon-icon");
+        if (sunIcon) sunIcon.classList.remove("hidden");
+        if (moonIcon) moonIcon.classList.add("hidden");
+    } else {
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.remove("light");
+        
+        const sunIcon = document.getElementById("theme-sun-icon");
+        const moonIcon = document.getElementById("theme-moon-icon");
+        if (sunIcon) sunIcon.classList.add("hidden");
+        if (moonIcon) moonIcon.classList.remove("hidden");
+    }
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.classList.contains("light") ? "light" : "dark";
+    if (currentTheme === "light") {
+        localStorage.setItem("theme", "dark");
+    } else {
+        localStorage.setItem("theme", "light");
+    }
+    initTheme();
 }

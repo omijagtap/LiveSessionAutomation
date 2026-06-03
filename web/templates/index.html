@@ -17,6 +17,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
       body { 
           font-family: 'Inter', system-ui, -apple-system, sans-serif; 
@@ -29,320 +32,866 @@
       }
     </style>
 </head>
-<body class="grid-bg h-screen w-screen overflow-hidden flex flex-col p-4">
+<body class="grid-bg min-h-screen w-full flex flex-row p-0 font-sans text-white overflow-x-hidden">
 
-    
-    <div class="relative z-10 w-full h-full flex flex-col max-w-full mx-auto overflow-hidden">
-        
-        <!-- HEADER / BRAND LOGO (Wording as upgrade automation, no logo) -->
-        <div class="flex items-center justify-between mb-4 px-2 flex-shrink-0">
-            <div class="flex items-center drop-shadow-md">
-                <span class="text-2xl font-semibold text-[#EE2C3C] tracking-tight">upGrad</span>
-                <span class="text-xl font-thin text-[var(--foreground)] tracking-wide ml-2 opacity-70">Automation</span>
+    <!-- ========================================== -->
+    <!-- LEFT SIDEBAR NAVIGATION                    -->
+    <!-- ========================================== -->
+    <div id="app-sidebar" class="hidden w-56 lg:w-64 bg-[#050507]/90 border-r border-white/5 flex flex-col justify-between p-4 lg:p-5 relative z-20 backdrop-blur-md flex-shrink-0">
+        <div class="space-y-6">
+            <!-- Header Brand -->
+            <div class="flex items-center gap-2.5 px-1 py-1 border-b border-white/5">
+                <div class="flex items-baseline gap-1">
+                    <span class="text-xl font-bold text-[#EE2C3C] tracking-tight">upGrad</span>
+                    <span class="text-xs font-light text-white/50 tracking-wide">Automation</span>
+                </div>
             </div>
             
-            <!-- Header right: onboarding notice + settings button -->
-            <div class="flex items-center gap-3">
-                <!-- First-time onboarding notice (hidden once configured) -->
-                <div id="onboarding-notice" class="hidden items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] text-amber-400 font-medium">
-                    <i data-lucide="alert-triangle" class="w-3 h-3 flex-shrink-0"></i>
-                    <span>Configure your email settings before sending.</span>
-                </div>
-                <!-- Quick Settings Trigger -->
-                <button id="settings-btn" onclick="openSettingsModal()" class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-medium text-white/80 hover:text-white rounded-xl border border-white/10 transition-all btn-press">
-                    <i data-lucide="settings" class="w-3.5 h-3.5"></i>
-                    Settings
+            <!-- Navigation -->
+            <nav class="space-y-1.5">
+                <button onclick="navigateSidebar('live-sessions')" id="sb-nav-live-sessions" class="w-full flex items-center gap-3 px-4 py-3 text-xs font-semibold rounded-xl transition-all cursor-pointer bg-[#EE2C3C] text-white shadow-md shadow-[#EE2C3C]/10 border border-transparent btn-press">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    <span>Live Sessions</span>
                 </button>
+                <button onclick="navigateSidebar('admin-panel')" id="sb-nav-admin-panel" class="hidden w-full flex items-center gap-3 px-4 py-3 text-xs font-semibold rounded-xl transition-all cursor-pointer text-white/50 hover:text-white/85 hover:bg-white/[0.03] border border-transparent btn-press">
+                    <i data-lucide="shield" class="w-4 h-4"></i>
+                    <span>Admin Panel</span>
+                </button>
+                <button onclick="openSettingsModal()" class="w-full flex items-center gap-3 px-4 py-3 text-xs font-semibold rounded-xl transition-all cursor-pointer text-white/50 hover:text-white/85 hover:bg-white/[0.03] border border-transparent btn-press">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                    <span>My Settings</span>
+                </button>
+            </nav>
+        </div>
+        
+        <!-- Profile info & Logout -->
+        <div class="border-t border-white/5 pt-4 space-y-3">
+            <div class="flex items-center gap-3 px-1">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#EE2C3C] to-[#ff6b6b] flex items-center justify-center text-white font-bold text-xs" id="sb-profile-avatar">U</div>
+                <div class="min-w-0 flex-1">
+                    <h4 class="text-xs font-bold text-white truncate" id="sb-profile-name">User Name</h4>
+                    <p class="text-[9px] text-white/40 uppercase tracking-wider font-semibold" id="sb-profile-role">Role</p>
+                </div>
+            </div>
+            <button onclick="handleLogout()" class="w-full flex items-center justify-center gap-2 py-2.5 bg-white/5 hover:bg-red-500/10 text-white/60 hover:text-red-400 text-xs font-semibold rounded-xl border border-white/5 hover:border-red-500/20 transition-all cursor-pointer btn-press">
+                <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                Logout
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MAIN WORKSPACE CONTENT                     -->
+    <!-- ========================================== -->
+    <div id="main-content-wrapper" class="flex-1 flex flex-col p-3 lg:p-4 overflow-y-auto overflow-x-hidden relative z-10 min-h-screen lg:h-screen lg:overflow-hidden">
+        
+        <!-- VIEW 1: LIVE SESSIONS (ORIGINAL VIEW) -->
+        <div id="live-sessions-view" class="w-full flex flex-col overflow-visible lg:h-full lg:overflow-hidden">
+            <!-- HEADER / BRAND LOGO -->
+            <div class="flex items-center justify-between mb-4 px-2 flex-shrink-0">
+                <div class="flex items-center gap-3 drop-shadow-sm">
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl font-bold text-[#EE2C3C] tracking-tight">upGrad</span>
+                        <span class="text-lg font-light text-white/60 tracking-wide">Automation</span>
+                    </div>
+                </div>
+                
+                <!-- Onboarding notice and Theme toggle -->
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="toggleTheme()" id="theme-toggle-btn" class="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-all btn-press border border-white/5 cursor-pointer" title="Toggle Light/Dark Theme">
+                        <i data-lucide="sun" class="w-4 h-4 hidden" id="theme-sun-icon"></i>
+                        <i data-lucide="moon" class="w-4 h-4" id="theme-moon-icon"></i>
+                    </button>
+                    <div id="onboarding-notice" class="hidden items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] text-amber-400 font-medium">
+                        <i data-lucide="alert-triangle" class="w-3 h-3 flex-shrink-0"></i>
+                        <span>Configure your email settings before sending.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MAIN WIDE CARD CONTAINER -->
+            <div class="ultra-glass p-4 lg:p-6 rounded-2xl card-shine flex flex-col lg:flex-row gap-4 lg:gap-6 relative text-left flex-1 overflow-visible lg:overflow-hidden">
+                
+                <!-- LEFT SIDE: INPUTS, ACTIONS & STEPS -->
+                <div class="w-full lg:w-4/12 flex flex-col gap-4 relative z-10 overflow-visible flex-shrink-0">
+                    <div class="flex flex-wrap items-center gap-3 mb-2 flex-shrink-0">
+                        <div class="flex items-center gap-2">
+                            <div class="live-dot" id="system-dot"></div>
+                            <span class="text-[10px] font-semibold text-[#4ade80] uppercase tracking-widest" id="system-status-text" style="letter-spacing: 0.15em;">Active & Connected</span>
+                        </div>
+
+                    </div>
+                    
+                    <h1 class="text-2xl font-extrabold mb-1 tracking-tight shiny-text leading-tight drop-shadow-sm flex-shrink-0">
+                        Live Session Reminder
+                    </h1>
+                    
+                    <p class="text-[rgba(255,255,255,0.6)] text-xs mb-2 leading-relaxed font-light flex-shrink-0">
+                        Manage and automate live session reminders. Select a date range to write references directly to O4/P4 in the Google Sheet. The sheet will recalculate data in Columns A to J, pull it here, display dashboard analytics, and preview emails.
+                    </p>
+                    
+                    <form id="fetch-form" class="space-y-4 mb-2 flex-shrink-0">
+                        <input type="hidden" id="start_date" name="start_date" required />
+                        <input type="hidden" id="end_date" name="end_date" required />
+
+                        <div class="grid grid-cols-2 gap-3 relative">
+                            <div class="relative">
+                                <label class="block text-[9px] font-semibold text-white/55 mb-1.5 uppercase tracking-widest">
+                                    Start Date
+                                </label>
+                                <button type="button" id="start-date-btn" onclick="toggleDatepicker('start', event)" class="input-glow w-full bg-[rgba(0,0,0,0.35)] border border-[rgba(255,255,255,0.12)] text-white/80 hover:text-white text-left text-xs rounded-xl px-3 py-3 focus:outline-none transition-all flex items-center gap-2">
+                                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-white/40"></i>
+                                    <span id="start-date-text">Select Date</span>
+                                </button>
+                                
+                                <div id="start-datepicker" class="datepicker-popup hidden mt-2 left-0">
+                                    <div class="datepicker">
+                                        <div class="datepicker-top">
+                                            <div class="btn-group">
+                                                <button type="button" class="tag" onclick="selectQuickDate('start', 'today')">Today</button>
+                                                <button type="button" class="tag" onclick="selectQuickDate('start', 'tomorrow')">Tomorrow</button>
+                                                <button type="button" class="tag" onclick="selectQuickDate('start', 'in2days')">In 2 days</button>
+                                            </div>
+                                            <div class="month-selector">
+                                                <button type="button" class="arrow" onclick="changeMonth('start', -1)"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                                                <span id="start-month-name" class="month-name">December 2020</span>
+                                                <button type="button" class="arrow" onclick="changeMonth('start', 1)"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                                            </div>
+                                        </div>
+                                        <div class="datepicker-calendar">
+                                            <span class="day">Mo</span><span class="day">Tu</span><span class="day">We</span><span class="day">Th</span><span class="day">Fr</span><span class="day">Sa</span><span class="day">Su</span>
+                                            <div id="start-cal-days" class="contents"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="relative">
+                                <label class="block text-[9px] font-semibold text-white/55 mb-1.5 uppercase tracking-widest">
+                                    End Date
+                                </label>
+                                <button type="button" id="end-date-btn" onclick="toggleDatepicker('end', event)" class="input-glow w-full bg-[rgba(0,0,0,0.35)] border border-[rgba(255,255,255,0.12)] text-white/80 hover:text-white text-left text-xs rounded-xl px-3 py-3 focus:outline-none transition-all flex items-center gap-2">
+                                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-white/40"></i>
+                                    <span id="end-date-text">Select Date</span>
+                                </button>
+                                
+                                <div id="end-datepicker" class="datepicker-popup hidden mt-2 right-0">
+                                    <div class="datepicker">
+                                        <div class="datepicker-top">
+                                            <div class="btn-group">
+                                                <button type="button" class="tag" onclick="selectQuickDate('end', 'today')">Today</button>
+                                                <button type="button" class="tag" onclick="selectQuickDate('end', 'tomorrow')">Tomorrow</button>
+                                                <button type="button" class="tag" onclick="selectQuickDate('end', 'in2days')">In 2 days</button>
+                                            </div>
+                                            <div class="month-selector">
+                                                <button type="button" class="arrow" onclick="changeMonth('end', -1)"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                                                <span id="end-month-name" class="month-name">December 2020</span>
+                                                <button type="button" class="arrow" onclick="changeMonth('end', 1)"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                                            </div>
+                                        </div>
+                                        <div class="datepicker-calendar">
+                                            <span class="day">Mo</span><span class="day">Tu</span><span class="day">We</span><span class="day">Th</span><span class="day">Fr</span><span class="day">Sa</span><span class="day">Su</span>
+                                            <div id="end-cal-days" class="contents"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="fetch-btn" class="w-full py-3 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl transition-all flex justify-center items-center gap-2 border border-transparent shadow-lg hover:shadow-xl btn-press disabled:opacity-40 disabled:pointer-events-none">
+                            <i data-lucide="lock" class="w-3.5 h-3.5" id="fetch-btn-lock-icon"></i>
+                            <span id="fetch-btn-text">Sync & Fetch Live Sessions</span>
+                        </button>
+                    </form>
+     
+                    <div id="terminal-container" class="w-full bg-[#050507] border border-[rgba(255,255,255,0.08)] rounded-xl p-4 shadow-inner flex flex-col flex-grow min-h-0 overflow-hidden">
+                        <div class="flex items-center justify-between pb-2 border-b border-white/5 mb-2 flex-shrink-0">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                                <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                <span class="text-[9px] text-white/40 font-mono ml-2">system-log.sh</span>
+                            </div>
+                            <button onclick="clearTerminal()" class="text-[9px] text-white/30 hover:text-white/60 font-mono cursor-pointer">clear</button>
+                        </div>
+                        <div id="terminal-log" class="text-[11px] font-mono text-white/80 overflow-y-auto flex-grow space-y-1.5 text-left scrollbar-thin">
+                            <p class="text-white/40">> System initialized. Ready to sync with Google Sheet.</p>
+                            <p class="text-white/40">> Configure credentials in settings if sending emails.</p>
+                        </div>
+                    </div>
+                </div>
+     
+                <div class="hidden lg:block w-px bg-gradient-to-b from-transparent via-[rgba(255,255,255,0.08)] to-transparent relative z-10"></div>
+     
+                <!-- RIGHT SIDE: DASHBOARD WORKSPACE -->
+                <div class="w-full lg:w-7/12 flex flex-col justify-start relative z-10 lg:h-full overflow-visible lg:overflow-hidden">
+                    <div id="dashboard-active" class="flex-1 flex flex-col space-y-4 min-h-0 overflow-hidden">
+                        
+                        <div class="grid grid-cols-3 gap-3 flex-shrink-0">
+                            <div class="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.07] rounded-xl p-3.5 text-left overflow-hidden group hover:border-white/10 transition-colors">
+                                <div class="absolute top-3 right-3 w-6 h-6 rounded-lg bg-[#EE2C3C]/10 flex items-center justify-center">
+                                    <i data-lucide="calendar-check" class="w-3.5 h-3.5 text-[#EE2C3C]/70"></i>
+                                </div>
+                                <span class="text-[9px] font-semibold text-white/35 uppercase tracking-widest block mb-2">Total Drafts</span>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span class="text-2xl font-bold text-white tabular-nums" id="stat-sessions">0</span>
+                                    <span class="text-[9px] text-[#4ade80] font-semibold" id="stat-sessions-sub">sessions</span>
+                                </div>
+                            </div>
+                            <div class="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.07] rounded-xl p-3.5 text-left overflow-hidden group hover:border-white/10 transition-colors">
+                                <div class="absolute top-3 right-3 w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                                    <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400/70"></i>
+                                </div>
+                                <span class="text-[9px] font-semibold text-white/35 uppercase tracking-widest block mb-2">Unique Professors</span>
+                                <div class="flex items-baseline gap-1.5">
+                                    <span class="text-2xl font-bold text-white tabular-nums" id="stat-graders">0</span>
+                                    <span class="text-[9px] text-white/35 font-medium">profs</span>
+                                </div>
+                            </div>
+                            <div class="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.07] rounded-xl p-3.5 text-left overflow-hidden group hover:border-white/10 transition-colors">
+                                <div class="absolute top-3 right-3 w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                    <i data-lucide="calendar-range" class="w-3.5 h-3.5 text-amber-400/70"></i>
+                                </div>
+                                <span class="text-[9px] font-semibold text-white/35 uppercase tracking-widest block mb-2">Date Scope</span>
+                                <div class="flex items-baseline gap-1">
+                                    <span class="text-sm font-bold text-white truncate max-w-full" id="stat-range">—</span>
+                                </div>
+                            </div>
+                        </div>
+    
+                        <div class="border-b border-white/10 flex-shrink-0">
+                            <nav class="flex gap-4" aria-label="Tabs">
+                                <button onclick="switchTab('tab-preview')" id="btn-tab-preview" class="border-b-2 border-[#EE2C3C] text-white py-2 px-1 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer">
+                                    <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                    Draft Previews
+                                </button>
+                                <button onclick="switchTab('tab-report')" id="btn-tab-report" class="border-b-2 border-transparent text-white/50 hover:text-white hover:border-white/20 py-2 px-1 text-xs font-semibold flex items-center gap-1.5 transition-all hidden cursor-pointer">
+                                    <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+                                    Execution Report
+                                </button>
+                            </nav>
+                        </div>
+    
+                        <div id="tab-content" class="flex-1 min-h-0 relative text-left">
+                            
+                            <!-- TAB 1: DRAFT PREVIEWS -->
+                            <div id="tab-preview" class="h-full flex flex-col min-h-0 space-y-4">
+                                <!-- Title and Action Buttons Row -->
+                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center flex-shrink-0 gap-3 border-b border-white/5 pb-2">
+                                    <div class="flex items-center gap-2.5">
+                                        <h3 class="text-xs font-semibold text-white/60">Generated Email Drafts</h3>
+                                        <!-- A small clean status badge that shows filter summary without shifting everything -->
+                                        <span id="spoc-filter-summary-text" class="text-[10px] text-indigo-400 font-semibold bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-lg hidden select-none animate-pulse"></span>
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <button onclick="startOboWizard()" id="btn-start-obo" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-semibold rounded-xl border border-white/10 transition-all btn-press flex items-center gap-1.5 cursor-pointer">
+                                            <i data-lucide="play-circle" class="w-4 h-4"></i>
+                                            Review One-by-One
+                                        </button>
+                                        <button onclick="openBulkWizard()" id="btn-start-bulk" class="hidden px-4 py-2 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 btn-press shadow-md transition-all cursor-pointer">
+                                            <i data-lucide="send" class="w-4 h-4"></i>
+                                            Bulk Send
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- SPOC Filters Row - dedicated line for pills to keep layout responsive and prevent any jumpiness -->
+                                <div id="spoc-filter-container" class="hidden flex-col gap-1.5 flex-shrink-0 border-b border-white/5 pb-2.5">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] font-semibold text-white/40 uppercase tracking-wider">Filter by SPOC:</span>
+                                    </div>
+                                    <!-- horizontal scrolling pill bar for mobile, wrapped for desktop -->
+                                    <div id="spoc-buttons-list" class="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none whitespace-nowrap"></div>
+                                </div>
+                                <div id="previews-cards-grid" class="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pr-1 scrollbar-thin pb-2">
+                                    <div id="previews-empty-state" class="col-span-full flex flex-col items-center justify-center text-center text-white/30 text-xs py-12">
+                                        <i data-lucide="mail-open" class="w-8 h-8 mb-2"></i>
+                                        No sessions synced yet. Pick a date range and click Sync to generate drafts.
+                                    </div>
+                                </div>
+                            </div>
+    
+                            <!-- TAB 2: FINAL EXECUTION REPORT -->
+                            <div id="tab-report" class="hidden h-full flex flex-col min-h-0 space-y-4">
+                                <div class="border border-white/5 bg-white/[0.01] rounded-2xl p-5 space-y-4 flex flex-col h-full min-h-0">
+                                    <div class="flex items-center gap-2.5 pb-3 border-b border-white/5 flex-shrink-0">
+                                        <div class="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
+                                            <i data-lucide="check-circle2" class="w-4 h-4"></i>
+                                        </div>
+                                        <h4 class="text-sm font-semibold text-white">Execution Process Completed</h4>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-4 gap-3 text-center flex-shrink-0">
+                                        <div class="bg-black/20 p-2.5 rounded-lg border border-white/5">
+                                            <span class="text-[9px] text-white/40 block">Total</span>
+                                            <span class="text-lg font-bold text-white" id="report-total">0</span>
+                                        </div>
+                                        <div class="bg-green-500/5 p-2.5 rounded-lg border border-green-500/10">
+                                            <span class="text-[9px] text-green-400/60 block">Success</span>
+                                            <span class="text-lg font-bold text-green-400" id="report-success">0</span>
+                                        </div>
+                                        <div class="bg-red-500/5 p-2.5 rounded-lg border border-red-500/10">
+                                            <span class="text-[9px] text-red-400/60 block">Failed</span>
+                                            <span class="text-lg font-bold text-red-400" id="report-failed">0</span>
+                                        </div>
+                                        <div class="bg-white/5 p-2.5 rounded-lg border border-white/5">
+                                            <span class="text-[9px] text-white/40 block">Skipped</span>
+                                            <span class="text-lg font-bold text-white/80" id="report-skipped">0</span>
+                                        </div>
+                                    </div>
+    
+                                    <div class="space-y-2 flex-1 flex flex-col min-h-0">
+                                        <span class="text-[10px] font-bold text-white/50 uppercase tracking-wider block flex-shrink-0">Detailed Logs</span>
+                                        <div class="flex-1 overflow-y-auto border border-white/5 bg-black/30 rounded-xl p-3 space-y-1.5 scrollbar-thin text-xs text-left" id="report-details-list">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- MAIN WIDE CARD CONTAINER -->
-        <div class="ultra-glass p-6 rounded-2xl card-shine flex flex-col lg:flex-row gap-6 relative text-left flex-1 overflow-hidden">
-            
-            <!-- LEFT SIDE: INPUTS, ACTIONS & STEPS -->
-            <div class="lg:w-4/12 flex flex-col gap-4 relative z-10 h-full overflow-visible flex-shrink-0">
-                <!-- Status Badge & Test Redirect Info -->
-                <div class="flex flex-wrap items-center gap-3 mb-2 flex-shrink-0">
-                    <div class="flex items-center gap-2">
-                        <div class="live-dot" id="system-dot"></div>
-                        <span class="text-[10px] font-semibold text-[#4ade80] uppercase tracking-widest" id="system-status-text" style="letter-spacing: 0.15em;">Active & Connected</span>
-                    </div>
-                    <span id="test-redirect-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        <i data-lucide="shield-alert" class="w-3 h-3"></i> Test Redirect Active (Sender Email)
-                    </span>
-                </div>
+        <!-- ========================================== -->
+        <!-- VIEW 2: ADMIN PANEL PORTAL                 -->
+        <!-- ========================================== -->
+        <div id="admin-panel-view" class="hidden w-full h-full flex flex-col overflow-hidden">
+            <!-- Header bar for Admin panel -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 px-2 flex-shrink-0 gap-3">
+                <h2 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <i data-lucide="shield" class="text-[#EE2C3C] w-6 h-6"></i>
+                    Admin Portal
+                </h2>
                 
-                <!-- Main Heading -->
-                <h1 class="text-2xl font-extrabold mb-1 tracking-tight shiny-text leading-tight drop-shadow-sm flex-shrink-0">
-                    Live Session Reminder
-                </h1>
-                
-                <!-- Paragraph Subtext -->
-                <p class="text-[rgba(255,255,255,0.6)] text-xs mb-2 leading-relaxed font-light flex-shrink-0">
-                    Manage and automate live session reminders. Select a date range to write references directly to O4/P4 in the Google Sheet. The sheet will recalculate data in Columns A to J, pull it here, display dashboard analytics, and preview emails.
-                </p>
-                
-                <!-- Date Picker Form with Floating Popups -->
-                <form id="fetch-form" class="space-y-4 mb-2 flex-shrink-0">
-                    <!-- Hidden input fields to submit with form -->
-                    <input type="hidden" id="start_date" name="start_date" required />
-                    <input type="hidden" id="end_date" name="end_date" required />
-
-                    <div class="grid grid-cols-2 gap-3 relative">
-                        <!-- Start Date Selector -->
-                        <div class="relative">
-                            <label class="block text-[9px] font-semibold text-white/50 mb-1.5 uppercase tracking-widest">
-                                Start Date
-                            </label>
-                            <button type="button" id="start-date-btn" onclick="toggleDatepicker('start', event)" class="input-glow w-full bg-[rgba(0,0,0,0.35)] border border-[rgba(255,255,255,0.12)] text-white/80 hover:text-white text-left text-xs rounded-xl px-3 py-3 focus:outline-none transition-all flex items-center gap-2">
-                                <i data-lucide="calendar" class="w-3.5 h-3.5 text-white/40"></i>
-                                <span id="start-date-text">Select Date</span>
-                            </button>
-                            
-                            <!-- Start Datepicker Popup -->
-                            <div id="start-datepicker" class="datepicker-popup hidden mt-2 left-0">
-                                <div class="datepicker">
-                                    <div class="datepicker-top">
-                                        <div class="btn-group">
-                                            <button type="button" class="tag" onclick="selectQuickDate('start', 'today')">Today</button>
-                                            <button type="button" class="tag" onclick="selectQuickDate('start', 'tomorrow')">Tomorrow</button>
-                                            <button type="button" class="tag" onclick="selectQuickDate('start', 'in2days')">In 2 days</button>
-                                        </div>
-                                        <div class="month-selector">
-                                            <button type="button" class="arrow" onclick="changeMonth('start', -1)"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
-                                            <span id="start-month-name" class="month-name">December 2020</span>
-                                            <button type="button" class="arrow" onclick="changeMonth('start', 1)"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
-                                        </div>
-                                    </div>
-                                    <div class="datepicker-calendar">
-                                        <span class="day">Mo</span>
-                                        <span class="day">Tu</span>
-                                        <span class="day">We</span>
-                                        <span class="day">Th</span>
-                                        <span class="day">Fr</span>
-                                        <span class="day">Sa</span>
-                                        <span class="day">Su</span>
-                                        <div id="start-cal-days" class="contents">
-                                            <!-- Injected dynamically -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- End Date Selector -->
-                        <div class="relative">
-                            <label class="block text-[9px] font-semibold text-white/50 mb-1.5 uppercase tracking-widest">
-                                End Date
-                            </label>
-                            <button type="button" id="end-date-btn" onclick="toggleDatepicker('end', event)" class="input-glow w-full bg-[rgba(0,0,0,0.35)] border border-[rgba(255,255,255,0.12)] text-white/80 hover:text-white text-left text-xs rounded-xl px-3 py-3 focus:outline-none transition-all flex items-center gap-2">
-                                <i data-lucide="calendar" class="w-3.5 h-3.5 text-white/40"></i>
-                                <span id="end-date-text">Select Date</span>
-                            </button>
-                            
-                            <!-- End Datepicker Popup -->
-                            <div id="end-datepicker" class="datepicker-popup hidden mt-2 right-0">
-                                <div class="datepicker">
-                                    <div class="datepicker-top">
-                                        <div class="btn-group">
-                                            <button type="button" class="tag" onclick="selectQuickDate('end', 'today')">Today</button>
-                                            <button type="button" class="tag" onclick="selectQuickDate('end', 'tomorrow')">Tomorrow</button>
-                                            <button type="button" class="tag" onclick="selectQuickDate('end', 'in2days')">In 2 days</button>
-                                        </div>
-                                        <div class="month-selector">
-                                            <button type="button" class="arrow" onclick="changeMonth('end', -1)"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
-                                            <span id="end-month-name" class="month-name">December 2020</span>
-                                            <button type="button" class="arrow" onclick="changeMonth('end', 1)"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
-                                        </div>
-                                    </div>
-                                    <div class="datepicker-calendar">
-                                        <span class="day">Mo</span>
-                                        <span class="day">Tu</span>
-                                        <span class="day">We</span>
-                                        <span class="day">Th</span>
-                                        <span class="day">Fr</span>
-                                        <span class="day">Sa</span>
-                                        <span class="day">Su</span>
-                                        <div id="end-cal-days" class="contents">
-                                            <!-- Injected dynamically -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sync / Fetch Button -->
-                    <button type="submit" id="fetch-btn"
-                        class="w-full py-3 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl transition-all flex justify-center items-center gap-2 border border-transparent shadow-lg hover:shadow-xl btn-press disabled:opacity-40 disabled:pointer-events-none">
-                        <i data-lucide="lock" class="w-3.5 h-3.5" id="fetch-btn-lock-icon"></i>
-                        <span id="fetch-btn-text">Sync & Fetch Live Sessions</span>
+                <!-- Admin tab buttons -->
+                <div class="flex bg-white/5 border border-white/10 rounded-xl p-1 gap-1 flex-shrink-0">
+                    <button onclick="switchAdminTab('user-mgr')" id="admin-tab-user-mgr" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#EE2C3C] transition-all cursor-pointer">
+                        Users
                     </button>
-                </form>
- 
-                <!-- Live Progress Terminal Console (Embedded) -->
-                <div id="terminal-container" class="w-full bg-[#050507] border border-[rgba(255,255,255,0.08)] rounded-xl p-4 shadow-inner flex flex-col flex-grow min-h-0 overflow-hidden">
-                    <div class="flex items-center justify-between pb-2 border-b border-white/5 mb-2 flex-shrink-0">
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                            <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
-                            <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                            <span class="text-[9px] text-white/40 font-mono ml-2">system-log.sh</span>
-                        </div>
-                        <button onclick="clearTerminal()" class="text-[9px] text-white/30 hover:text-white/60 font-mono">clear</button>
-                    </div>
-                    <div id="terminal-log" class="text-[11px] font-mono text-white/80 overflow-y-auto flex-grow space-y-1.5 text-left scrollbar-thin">
-                        <p class="text-white/40">> System initialized. Ready to sync with Google Sheet.</p>
-                        <p class="text-white/40">> Configure credentials in settings if sending emails.</p>
-                    </div>
+                    <button onclick="switchAdminTab('smtp-mgr')" id="admin-tab-smtp-mgr" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white/60 hover:text-white transition-all cursor-pointer">
+                        SPOC SMTP
+                    </button>
+                    <button onclick="switchAdminTab('logs-mgr')" id="admin-tab-logs-mgr" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white/60 hover:text-white transition-all cursor-pointer">
+                        Activity Logs
+                    </button>
+                    <button onclick="switchAdminTab('stats-mgr')" id="admin-tab-stats-mgr" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white/60 hover:text-white transition-all cursor-pointer">
+                        Analytics
+                    </button>
                 </div>
             </div>
- 
-            <!-- Vertical Divider -->
-            <div class="hidden lg:block w-px bg-gradient-to-b from-transparent via-[rgba(255,255,255,0.08)] to-transparent relative z-10"></div>
- 
-            <!-- RIGHT SIDE: DASHBOARD WORKSPACE -->
-            <div class="lg:w-7/12 flex flex-col justify-start relative z-10 h-full overflow-hidden">
+
+            <!-- Main Admin Workspace Container -->
+            <div class="ultra-glass p-6 rounded-2xl card-shine flex flex-col relative text-left flex-1 overflow-hidden">
                 
-                <!-- Active Dashboard State -->
-                <div id="dashboard-active" class="flex-1 flex flex-col space-y-4 min-h-0 overflow-hidden">
+                <!-- SECTION A: USER MANAGEMENT -->
+                <div id="panel-user-mgr" class="h-full flex flex-col space-y-4 min-h-0 overflow-hidden">
+                    <div class="flex justify-between items-center flex-shrink-0">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">System Users & Access Roles</h3>
+                            <p class="text-[10px] text-white/40">Add, manage, and edit credentials for Users and Co-Admins.</p>
+                        </div>
+                        <button onclick="openUserModal(false)" class="px-4 py-2 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 btn-press cursor-pointer">
+                            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                            Add User
+                        </button>
+                    </div>
+
+                    <!-- User Table -->
+                    <div class="flex-grow border border-white/5 bg-black/20 rounded-xl overflow-auto scrollbar-thin">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-white/5 bg-white/[0.02] text-white/40 text-[9px] font-bold uppercase tracking-wider">
+                                    <th class="p-3.5 pl-5">User Name</th>
+                                    <th class="p-3.5">Email Address</th>
+                                    <th class="p-3.5">Security Role</th>
+                                    <th class="p-3.5 pr-5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-table-body" class="divide-y divide-white/5 text-white/80">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECTION B: SPOC SMTP SETTINGS -->
+                <div id="panel-smtp-mgr" class="hidden h-full flex flex-col space-y-4 min-h-0 overflow-hidden">
+                    <div class="flex justify-between items-center flex-shrink-0">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">SPOC SMTP Credentials Configuration</h3>
+                            <p class="text-[10px] text-white/40">Manage SMTP credentials, designations and signatures on behalf of SPOCs.</p>
+                        </div>
+                    </div>
+
+                    <!-- SMTP configs table -->
+                    <div class="flex-grow border border-white/5 bg-black/20 rounded-xl overflow-auto scrollbar-thin">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-white/5 bg-white/[0.02] text-white/40 text-[9px] font-bold uppercase tracking-wider">
+                                    <th class="p-3.5 pl-5">SPOC Name</th>
+                                    <th class="p-3.5">SMTP Email</th>
+                                    <th class="p-3.5">App Password</th>
+                                    <th class="p-3.5">Signature</th>
+                                    <th class="p-3.5">CC Recipients</th>
+                                    <th class="p-3.5 pr-5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-smtp-table-body" class="divide-y divide-white/5 text-white/80">
+                                <!-- Loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECTION C: ACTIVITY LOGS & HISTORY -->
+                <div id="panel-logs-mgr" class="hidden h-full flex flex-col space-y-4 min-h-0 overflow-hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center flex-shrink-0 gap-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">System Activity Logs & History</h3>
+                            <p class="text-[10px] text-white/40">View Login actions, sync operations, settings modifications, and email history.</p>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <input type="text" id="admin-logs-search" oninput="filterLogs()" class="input-glow bg-black/45 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 w-full sm:w-48 placeholder-white/30" placeholder="Search logs..." />
+                            <select id="admin-logs-type-filter" onchange="filterLogs()" class="input-glow bg-black/45 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 placeholder-white/30 cursor-pointer">
+                                <option value="all" class="bg-[#121212] text-white">All Activities</option>
+                                <option value="Successful logins" class="bg-[#121212] text-white">Logins</option>
+                                <option value="Logout actions" class="bg-[#121212] text-white">Logouts</option>
+                                <option value="User creation" class="bg-[#121212] text-white">User Create/Delete</option>
+                                <option value="Settings updates" class="bg-[#121212] text-white">Updates</option>
+                                <option value="Draft Generations" class="bg-[#121212] text-white">Draft Gen</option>
+                                <option value="Email sending actions" class="bg-[#121212] text-white">Emails Sent</option>
+                                <option value="Sync operations" class="bg-[#121212] text-white">Syncs</option>
+                                <option value="Bulk sends" class="bg-[#121212] text-white">Bulk Sends</option>
+                            </select>
+                            <button onclick="clearSystemLogs()" id="btn-clear-logs-admin" class="px-3.5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-xs font-semibold rounded-xl border border-red-500/20 transition-all btn-press cursor-pointer flex items-center gap-1.5 flex-shrink-0">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                Clear Logs
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Logs View console -->
+                    <div class="flex-grow border border-white/5 bg-[#030305] rounded-xl p-4 font-mono text-[10.5px] text-white/80 overflow-y-auto space-y-1.5 scrollbar-thin" id="admin-logs-console">
+                        <!-- Loaded dynamically -->
+                    </div>
                     
-                    <!-- Quick Stats Grid -->
-                    <div class="grid grid-cols-3 gap-3 flex-shrink-0">
-                        <!-- Stat: Total Sessions -->
-                        <div class="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.07] rounded-xl p-3.5 text-left overflow-hidden group hover:border-white/10 transition-colors">
-                            <div class="absolute top-3 right-3 w-6 h-6 rounded-lg bg-[#EE2C3C]/10 flex items-center justify-center">
-                                <i data-lucide="calendar-check" class="w-3.5 h-3.5 text-[#EE2C3C]/70"></i>
-                            </div>
-                            <span class="text-[9px] font-semibold text-white/35 uppercase tracking-widest block mb-2">Total Sessions</span>
-                            <div class="flex items-baseline gap-1.5">
-                                <span class="text-2xl font-bold text-white tabular-nums" id="stat-sessions">0</span>
-                                <span class="text-[9px] text-[#4ade80] font-semibold" id="stat-sessions-sub">active</span>
-                            </div>
-                        </div>
-                        <!-- Stat: Unique Professors -->
-                        <div class="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.07] rounded-xl p-3.5 text-left overflow-hidden group hover:border-white/10 transition-colors">
-                            <div class="absolute top-3 right-3 w-6 h-6 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                                <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-400/70"></i>
-                            </div>
-                            <span class="text-[9px] font-semibold text-white/35 uppercase tracking-widest block mb-2">Unique Professors</span>
-                            <div class="flex items-baseline gap-1.5">
-                                <span class="text-2xl font-bold text-white tabular-nums" id="stat-graders">0</span>
-                                <span class="text-[9px] text-white/35 font-medium">profs</span>
-                            </div>
-                        </div>
-                        <!-- Stat: Date Scope -->
-                        <div class="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.07] rounded-xl p-3.5 text-left overflow-hidden group hover:border-white/10 transition-colors">
-                            <div class="absolute top-3 right-3 w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                                <i data-lucide="calendar-range" class="w-3.5 h-3.5 text-amber-400/70"></i>
-                            </div>
-                            <span class="text-[9px] font-semibold text-white/35 uppercase tracking-widest block mb-2">Date Scope</span>
-                            <div class="flex items-baseline gap-1">
-                                <span class="text-sm font-bold text-white truncate max-w-full" id="stat-range">—</span>
-                            </div>
+                    <!-- Logs Pagination -->
+                    <div class="flex flex-col sm:flex-row justify-between items-center bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-[10px] text-white/60 gap-3 flex-shrink-0" id="admin-logs-pagination">
+                        <span id="admin-logs-pagination-info" class="font-semibold select-none">Showing 0-0 of 0 logs</span>
+                        <div class="flex items-center gap-1" id="admin-logs-pagination-buttons">
+                            <!-- Buttons loaded dynamically -->
                         </div>
                     </div>
+                </div>
 
-                    <!-- Mode Tab Headers -->
-
-                    <div class="border-b border-white/10 flex-shrink-0">
-                        <nav class="flex gap-4" aria-label="Tabs">
-                            <button onclick="switchTab('tab-preview')" id="btn-tab-preview" class="border-b-2 border-[#EE2C3C] text-white py-2 px-1 text-xs font-medium flex items-center gap-1.5 transition-all">
-                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-                                Draft Previews
-                            </button>
-                            <button onclick="switchTab('tab-report')" id="btn-tab-report" class="border-b-2 border-transparent text-white/50 hover:text-white hover:border-white/20 py-2 px-1 text-xs font-medium flex items-center gap-1.5 transition-all hidden">
-                                <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
-                                Execution Report
-                            </button>
-                        </nav>
-                    </div>
-
-                    <!-- TAB CONTENT PANELS -->
-                    <div id="tab-content" class="flex-1 min-h-0 relative text-left">
+                <!-- SECTION D: ANALYTICS & METRICS -->
+                <div id="panel-stats-mgr" class="hidden h-full flex flex-col space-y-4 min-h-0 overflow-y-auto scrollbar-thin">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center flex-shrink-0 gap-3 border-b border-white/5 pb-3">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">System Usage Analytics</h3>
+                            <p class="text-[10px] text-white/40">Review email statistics, SPOC-wise bulk send counts, and system metrics.</p>
+                        </div>
                         
-                        <!-- TAB 1: DRAFT PREVIEWS -->
-                        <div id="tab-preview" class="h-full flex flex-col min-h-0 space-y-4">
-                            <div class="flex justify-between items-center flex-shrink-0 gap-3">
-                                <div class="flex items-center gap-3">
-                                    <h3 class="text-xs font-semibold text-white/60">Generated Email Drafts</h3>
-                                    <!-- SPOC Filter Pills -->
-                                    <div id="spoc-filter-container" class="hidden items-center gap-1.5">
-                                        <span class="text-[9px] font-semibold text-white/40 uppercase tracking-wider mr-1">SPOC:</span>
-                                        <div id="spoc-buttons-list" class="flex items-center gap-1.5 flex-wrap">
-                                            <!-- Injected dynamically -->
-                                        </div>
-                                        <span id="spoc-filter-summary-text" class="text-[10px] text-indigo-400 font-semibold ml-2 select-none"></span>
+                        <!-- Dashboard Date filtering -->
+                        <div class="flex flex-wrap items-center bg-white/5 border border-white/10 rounded-2xl p-1.5 gap-2.5 flex-shrink-0">
+                            <!-- Quick Range Buttons -->
+                            <div class="flex bg-black/20 rounded-xl p-0.5 border border-white/5">
+                                <button onclick="filterDashboardStats('today')" id="dash-filter-today" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold text-white bg-[#EE2C3C] transition-all cursor-pointer">
+                                    <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                                    <span>Today</span>
+                                </button>
+                                <button onclick="filterDashboardStats('weekly')" id="dash-filter-weekly" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold text-white/60 hover:text-white transition-all cursor-pointer">
+                                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                                    <span>Weekly</span>
+                                </button>
+                            </div>
+                            
+                            <div class="h-5 w-[1px] bg-white/10 hidden sm:block"></div>
+                            
+                            <!-- Custom Range Picker -->
+                            <div class="flex flex-wrap items-center gap-2">
+                                <div class="flex items-center gap-1 bg-black/20 border border-white/5 rounded-xl px-2.5 py-1 text-[10px] text-white/60">
+                                    <i data-lucide="calendar-days" class="w-3.5 h-3.5 text-white/40"></i>
+                                    <span class="font-medium mr-1">Custom:</span>
+                                    <input type="date" id="dash-start-date" class="bg-transparent border-0 text-white focus:outline-none [color-scheme:dark] text-[10px] font-semibold font-mono" />
+                                    <span class="text-white/30 px-1">to</span>
+                                    <input type="date" id="dash-end-date" class="bg-transparent border-0 text-white focus:outline-none [color-scheme:dark] text-[10px] font-semibold font-mono" />
+                                </div>
+                                <button onclick="filterDashboardStats('custom')" id="dash-filter-custom" class="bg-[#EE2C3C] hover:bg-[#EE2C3C]/90 text-white flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer shadow-lg shadow-[#EE2C3C]/20 border border-white/5 active:scale-95">
+                                    <span>Apply</span>
+                                    <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Stats cards grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0">
+                        <!-- Total Emails -->
+                        <div class="bg-white/[0.02] border border-white/5 p-3 rounded-xl flex items-center justify-between">
+                            <div>
+                                <span class="text-[8px] font-bold text-white/40 uppercase tracking-widest block mb-0.5">Total Emails</span>
+                                <span class="text-xl font-bold text-white" id="dash-stat-total">0</span>
+                            </div>
+                            <div class="text-white/30 text-lg mr-1">
+                                <i class="fa-regular fa-envelope"></i>
+                            </div>
+                        </div>
+                        <!-- Sent Emails -->
+                        <div class="bg-green-500/5 border border-green-500/10 p-3 rounded-xl flex items-center justify-between">
+                            <div>
+                                <span class="text-[8px] font-bold text-green-400/60 uppercase tracking-widest block mb-0.5">Sent Emails</span>
+                                <span class="text-xl font-bold text-green-400" id="dash-stat-sent">0</span>
+                            </div>
+                            <div class="text-green-400/40 text-lg mr-1">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </div>
+                        </div>
+                        <!-- Failed Emails -->
+                        <div class="bg-red-500/5 border border-red-500/10 p-3 rounded-xl flex items-center justify-between">
+                            <div>
+                                <span class="text-[8px] font-bold text-red-400/60 uppercase tracking-widest block mb-0.5">Failed Emails</span>
+                                <span class="text-xl font-bold text-red-400" id="dash-stat-failed">0</span>
+                            </div>
+                            <div class="text-red-400/40 text-lg mr-1">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                            </div>
+                        </div>
+                        <!-- Success Rate -->
+                        <div class="bg-white/[0.02] border border-white/5 p-3 rounded-xl flex items-center justify-between">
+                            <div>
+                                <span class="text-[8px] font-bold text-white/40 uppercase tracking-widest block mb-0.5">Success Rate</span>
+                                <span class="text-xl font-bold text-white" id="dash-stat-rate">100%</span>
+                            </div>
+                            <div class="text-white/30 text-lg mr-1">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
+                        <!-- User Metrics card -->
+                        <div class="bg-white/[0.01] border border-white/5 p-4 rounded-xl space-y-3 text-left">
+                            <h4 class="text-xs font-bold text-white uppercase tracking-wider border-b border-white/5 pb-1.5 flex items-center gap-2">
+                                <i data-lucide="users" class="w-3.5 h-3.5 text-[#EE2C3C]"></i>
+                                <span>User Metrics</span>
+                            </h4>
+                            <div class="grid grid-cols-3 gap-2 text-center">
+                                <div class="bg-black/30 p-2.5 rounded-lg border border-white/5 relative overflow-hidden flex flex-col items-center justify-center min-h-[60px]">
+                                    <span class="text-[8px] text-white/40 block z-10 font-bold uppercase tracking-wide">Total</span>
+                                    <span class="text-sm font-bold text-white z-10" id="dash-users-total">0</span>
+                                    <div class="absolute -right-2 -bottom-2 text-white/[0.02] z-0">
+                                        <i data-lucide="users" class="w-8 h-8"></i>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-2 flex-shrink-0">
-                                    <button id="btn-reset-statuses" onclick="resetAllStatuses()" class="hidden px-3.5 py-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold rounded-xl border border-white/5 transition-all btn-press">
-                                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mr-1 inline-block"></i> Reset Statuses
-                                    </button>
-                                    <button onclick="startOboWizard()" id="btn-start-obo" class="hidden px-4 py-2 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-semibold rounded-xl border border-white/10 transition-all btn-press flex items-center gap-1.5">
-                                        <i data-lucide="play-circle" class="w-4 h-4"></i>
-                                        Review One-by-One
-                                    </button>
-                                    <button onclick="openBulkWizard()" id="btn-start-bulk" class="hidden px-4 py-2 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 btn-press shadow-md transition-all">
-                                        <i data-lucide="send" class="w-4 h-4"></i>
-                                        Bulk Send
-                                    </button>
+                                <div class="bg-black/30 p-2.5 rounded-lg border border-white/5 relative overflow-hidden flex flex-col items-center justify-center min-h-[60px]">
+                                    <span class="text-[8px] text-white/40 block z-10 font-bold uppercase tracking-wide">Co-Admins</span>
+                                    <span class="text-sm font-bold text-white z-10" id="dash-users-coadmins">0</span>
+                                    <div class="absolute -right-2 -bottom-2 text-white/[0.02] z-0">
+                                        <i data-lucide="shield" class="w-8 h-8"></i>
+                                    </div>
                                 </div>
-                            </div>
-                            <div id="previews-cards-grid" class="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-1 scrollbar-thin">
-                                <!-- Cards populated dynamically -->
-                                <div id="previews-empty-state" class="col-span-full flex flex-col items-center justify-center text-center text-white/30 text-xs py-12">
-                                    <i data-lucide="mail-open" class="w-8 h-8 mb-2"></i>
-                                    No sessions synced yet. Pick a date range and click Sync to generate drafts.
+                                <div class="bg-black/30 p-2.5 rounded-lg border border-white/5 relative overflow-hidden flex flex-col items-center justify-center min-h-[60px]">
+                                    <span class="text-[8px] text-white/40 block z-10 font-bold uppercase tracking-wide">Users</span>
+                                    <span class="text-sm font-bold text-white z-10" id="dash-users-active">0</span>
+                                    <div class="absolute -right-2 -bottom-2 text-white/[0.02] z-0">
+                                        <i data-lucide="user" class="w-8 h-8"></i>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- TAB 3 removed as per user request -->
-
-                        <!-- TAB 4: FINAL EXECUTION REPORT -->
-                        <div id="tab-report" class="hidden h-full flex flex-col min-h-0 space-y-4">
-                            <div class="border border-white/5 bg-white/[0.01] rounded-2xl p-5 space-y-4 flex flex-col h-full min-h-0">
-                                <div class="flex items-center gap-2.5 pb-3 border-b border-white/5 flex-shrink-0">
-                                    <div class="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
-                                        <i data-lucide="check-circle2" class="w-4 h-4"></i>
-                                    </div>
-                                    <h4 class="text-sm font-semibold text-white">Execution Process Completed</h4>
-                                </div>
-                                
-                                <div class="grid grid-cols-4 gap-3 text-center flex-shrink-0">
-                                    <div class="bg-black/20 p-2.5 rounded-lg border border-white/5">
-                                        <span class="text-[9px] text-white/40 block">Total</span>
-                                        <span class="text-lg font-bold text-white" id="report-total">0</span>
-                                    </div>
-                                    <div class="bg-green-500/5 p-2.5 rounded-lg border border-green-500/10">
-                                        <span class="text-[9px] text-green-400/60 block">Success</span>
-                                        <span class="text-lg font-bold text-green-400" id="report-success">0</span>
-                                    </div>
-                                    <div class="bg-red-500/5 p-2.5 rounded-lg border border-red-500/10">
-                                        <span class="text-[9px] text-red-400/60 block">Failed</span>
-                                        <span class="text-lg font-bold text-red-400" id="report-failed">0</span>
-                                    </div>
-                                    <div class="bg-white/5 p-2.5 rounded-lg border border-white/5">
-                                        <span class="text-[9px] text-white/40 block">Skipped</span>
-                                        <span class="text-lg font-bold text-white/80" id="report-skipped">0</span>
+                        <!-- Activity Metrics card -->
+                        <div class="bg-white/[0.01] border border-white/5 p-4 rounded-xl space-y-3 text-left">
+                            <h4 class="text-xs font-bold text-white uppercase tracking-wider border-b border-white/5 pb-1.5 flex items-center gap-2">
+                                <i data-lucide="activity" class="w-3.5 h-3.5 text-[#EE2C3C]"></i>
+                                <span>Activity Metrics</span>
+                            </h4>
+                            <div class="grid grid-cols-3 gap-2 text-center">
+                                <div class="bg-black/30 p-2.5 rounded-lg border border-white/5 relative overflow-hidden flex flex-col items-center justify-center min-h-[60px]">
+                                    <span class="text-[8px] text-white/40 block z-10 font-bold uppercase tracking-wide">Syncs</span>
+                                    <span class="text-sm font-bold text-white z-10" id="dash-act-syncs">0</span>
+                                    <div class="absolute -right-2 -bottom-2 text-white/[0.02] z-0">
+                                        <i data-lucide="refresh-cw" class="w-8 h-8"></i>
                                     </div>
                                 </div>
-
-                                <div class="space-y-2 flex-1 flex flex-col min-h-0">
-                                    <span class="text-[10px] font-bold text-white/50 uppercase tracking-wider block flex-shrink-0">Detailed Logs</span>
-                                    <div class="flex-1 overflow-y-auto border border-white/5 bg-black/30 rounded-xl p-3 space-y-1.5 scrollbar-thin text-xs text-left" id="report-details-list">
-                                        <!-- Dynamic details log -->
+                                <div class="bg-black/30 p-2.5 rounded-lg border border-white/5 relative overflow-hidden flex flex-col items-center justify-center min-h-[60px]">
+                                    <span class="text-[8px] text-white/40 block z-10 font-bold uppercase tracking-wide">Draft Gens</span>
+                                    <span class="text-sm font-bold text-white z-10" id="dash-act-drafts">0</span>
+                                    <div class="absolute -right-2 -bottom-2 text-white/[0.02] z-0">
+                                        <i data-lucide="file-text" class="w-8 h-8"></i>
+                                    </div>
+                                </div>
+                                <div class="bg-black/30 p-2.5 rounded-lg border border-white/5 relative overflow-hidden flex flex-col items-center justify-center min-h-[60px]">
+                                    <span class="text-[8px] text-white/40 block z-10 font-bold uppercase tracking-wide">Bulk Sends</span>
+                                    <span class="text-sm font-bold text-white z-10" id="dash-act-bulks">0</span>
+                                    <div class="absolute -right-2 -bottom-2 text-white/[0.02] z-0">
+                                        <i data-lucide="zap" class="w-8 h-8"></i>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
+                    <!-- SPOC-wise Metrics -->
+                    <div class="border border-white/5 bg-black/20 rounded-xl overflow-hidden flex flex-col">
+                        <div class="p-3.5 bg-white/[0.02] border-b border-white/5 flex justify-between items-center">
+                            <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="bar-chart-3" class="w-3.5 h-3.5 text-[#EE2C3C]"></i>
+                                <span>SPOC Performance Stats</span>
+                            </h4>
+                            <button onclick="resetDashboardMetrics()" id="btn-reset-metrics-admin" class="flex items-center gap-1 px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[9px] font-bold rounded-lg border border-red-500/15 transition-all btn-press cursor-pointer">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                <span>Reset DB Metrics</span>
+                            </button>
+                        </div>
+                        <div class="overflow-auto max-h-48 scrollbar-thin">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="border-b border-white/5 bg-white/[0.01] text-white/40 text-[9px] font-bold uppercase tracking-wider">
+                                        <th class="p-2.5 pl-4">
+                                            <span class="flex items-center gap-1">
+                                                <span>SPOC Name</span>
+                                                <i data-lucide="user" class="w-3 h-3 text-white/20"></i>
+                                            </span>
+                                        </th>
+                                        <th class="p-2.5">
+                                            <span class="flex items-center gap-1">
+                                                <span>Email</span>
+                                                <i data-lucide="mail" class="w-3 h-3 text-white/20"></i>
+                                            </span>
+                                        </th>
+                                        <th class="p-2.5">
+                                            <span class="flex items-center gap-1">
+                                                <span>Emails Sent</span>
+                                                <i data-lucide="send" class="w-3 h-3 text-white/20"></i>
+                                            </span>
+                                        </th>
+                                        <th class="p-2.5">
+                                            <span class="flex items-center gap-1">
+                                                <span>Failed</span>
+                                                <i data-lucide="alert-circle" class="w-3 h-3 text-white/20"></i>
+                                            </span>
+                                        </th>
+                                        <th class="p-2.5 pr-4 text-right">
+                                            <span class="flex items-center gap-1 justify-end">
+                                                <span>Success Rate</span>
+                                                <i data-lucide="trending-up" class="w-3 h-3 text-white/20"></i>
+                                            </span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-spoc-stats-body" class="divide-y divide-white/5 text-white/80">
+                                    <!-- Dynamic spoc rows -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 
+    <!-- ========================================== -->
+    <!-- SPLASH LOADING SCREEN                      -->
+    <!-- ========================================== -->
+    <div id="splash-overlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md gap-4">
+        <div class="flex items-baseline gap-1.5 animate-pulse">
+            <span class="text-2xl font-bold text-[#EE2C3C] tracking-tight">upGrad</span>
+            <span class="text-xl font-light text-white/60 tracking-wide">Automation</span>
+        </div>
+        <div class="flex items-center gap-2 text-white/40 text-xs">
+            <i data-lucide="loader" class="w-4 h-4 animate-spin text-[#EE2C3C]"></i>
+            <span>Connecting securely...</span>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- GLASSMORPHIC LOGIN OVERLAY                 -->
+    <!-- ========================================== -->
+    <div id="login-overlay" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/95 backdrop-blur-md p-4">
+        <div class="ultra-glass w-full max-w-sm rounded-3xl border border-white/10 p-8 flex flex-col gap-6 text-left shadow-2xl relative overflow-hidden card-shine">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#EE2C3C] via-red-500 to-[#ff6b6b]"></div>
+            
+            <div class="text-center space-y-3.5">
+                <div class="flex items-center justify-center gap-1.5">
+                    <span class="text-2xl font-bold text-[#EE2C3C] tracking-tight">upGrad</span>
+                    <span class="text-xl font-light text-white/60 tracking-wide">Automation</span>
+                </div>
+                <div class="space-y-1">
+                    <h3 class="text-xs font-bold text-white/30 uppercase tracking-widest mt-1">Live Session Reminder</h3>
+                </div>
             </div>
+            
+            <form id="login-form" class="space-y-4">
+                <div class="space-y-1">
+                    <label class="block text-[9px] font-semibold text-white/55 uppercase tracking-wider">Email Address</label>
+                    <input type="email" id="login-email" class="input-glow w-full bg-black/35 text-xs px-3 py-3 rounded-xl border border-white/10 focus:outline-none" placeholder="abc@upgrad.com" required />
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-[9px] font-semibold text-white/55 uppercase tracking-wider">Password</label>
+                    <div class="relative">
+                        <input type="password" id="login-password" class="input-glow w-full bg-black/35 text-xs pl-3 pr-10 py-3 rounded-xl border border-white/10 focus:outline-none" placeholder="••••••••" required />
+                        <button type="button" onclick="togglePasswordVisibility('login-password', 'toggle-login-password-icon')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-white/40 hover:text-white transition-colors cursor-pointer focus:outline-none">
+                            <i data-lucide="eye" id="toggle-login-password-icon" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="login-error" class="text-[10px] text-red-400 font-semibold text-center hidden"></div>
+                
+                <button type="submit" class="w-full py-3 bg-[#EE2C3C] hover:bg-[#d42535] text-white text-xs font-semibold rounded-xl transition-all btn-press shadow-lg shadow-[#EE2C3C]/20 flex items-center justify-center gap-2 cursor-pointer">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    Login to Portal
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ADD/EDIT USER MODAL (ADMIN ONLY)           -->
+    <!-- ========================================== -->
+    <div id="user-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+        <div class="ultra-glass w-full max-w-md rounded-3xl border border-white/10 p-6 flex flex-col gap-4 text-left shadow-2xl">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="user-cog" class="w-4 h-4 text-[#EE2C3C]"></i>
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider" id="user-modal-title">Create New User</h3>
+                </div>
+                <button type="button" onclick="closeUserModal()" class="w-6 h-6 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-all btn-press cursor-pointer">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
+            <!-- Form -->
+            <form id="user-form" class="space-y-4">
+                <input type="hidden" id="user-modal-id" />
+                <div class="space-y-1">
+                    <label class="block text-[9px] font-semibold text-white/55 uppercase tracking-wider">User Name</label>
+                    <input type="text" id="user-modal-name" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="E.g. Omkar Jagtap" required />
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-[9px] font-semibold text-white/55 uppercase tracking-wider">Email Address</label>
+                    <input type="email" id="user-modal-email" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="abc@upgrad.com" required />
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-[9px] font-semibold text-white/55 uppercase tracking-wider" id="user-modal-pass-label">Password</label>
+                    <div class="relative">
+                        <input type="password" id="user-modal-password" class="input-glow w-full bg-black/35 text-xs pl-3 pr-10 py-2.5 rounded-lg border border-white/10 focus:outline-none" placeholder="Password for login" required />
+                        <button type="button" onclick="togglePasswordVisibility('user-modal-password', 'toggle-user-password-icon')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-white/40 hover:text-white transition-colors cursor-pointer focus:outline-none">
+                            <i data-lucide="eye" id="toggle-user-password-icon" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-[9px] font-semibold text-white/55 uppercase tracking-wider">Security Access Role</label>
+                    <select id="user-modal-role" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10 cursor-pointer">
+                        <option value="User" class="bg-[#121212] text-white">User (Normal workflow access, logs settings)</option>
+                        <option value="Co-Admin" class="bg-[#121212] text-white">Co-Admin (Can manage users, see settings/logs)</option>
+                    </select>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-2 justify-end pt-2 border-t border-white/5">
+                    <button type="button" onclick="closeUserModal()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-semibold text-white/80 rounded-xl transition-all btn-press border border-white/5 cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-[#EE2C3C] hover:bg-[#d42535] text-xs font-semibold text-white rounded-xl transition-all btn-press shadow-md cursor-pointer">
+                        Save User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ADMIN CONFIGURE SPOC SETTINGS MODAL        -->
+    <!-- ========================================== -->
+    <div id="admin-settings-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="ultra-glass w-full max-w-4xl rounded-3xl border border-white/10 p-6 flex flex-col gap-4 text-left max-h-[95vh] overflow-y-auto scrollbar-none shadow-2xl">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-white/5 pb-2">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="settings" class="w-4 h-4 text-[#EE2C3C]"></i>
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider" id="admin-settings-title">Configure SMTP for: SPOC</h3>
+                </div>
+                <button type="button" onclick="closeAdminSettingsModal()" class="w-6 h-6 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-all btn-press cursor-pointer">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
+            <!-- Settings fields Form -->
+            <form id="admin-settings-form" class="space-y-4">
+                <input type="hidden" id="admin-settings-email" />
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-3 bg-white/[0.01] border border-white/5 rounded-2xl p-4 flex flex-col justify-between">
+                        <div>
+                            <p class="text-[9px] font-bold text-white/40 uppercase tracking-widest border-b border-white/5 pb-1 mb-3">SMTP Credentials</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="space-y-1">
+                                    <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Sender Email ID</label>
+                                    <input type="email" id="admin-cfg-sender-email" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="spoc@outlook.com" required />
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">CC Emails</label>
+                                    <input type="text" id="admin-cfg-cc-emails" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="cc1@upgrad.com, cc2@upgrad.com" />
+                                </div>
+                            </div>
+                            <div class="space-y-1 mt-3 border-t border-white/5 pt-3">
+                                <label class="block text-[9px] font-semibold text-white/55 uppercase tracking-wider">App Password</label>
+                                <div class="relative">
+                                    <input type="password" id="admin-cfg-app-password" class="input-glow w-full bg-black/35 text-xs pl-3 pr-10 py-2.5 rounded-lg border border-white/10 focus:outline-none" placeholder="Outlook App Password" required />
+                                    <button type="button" onclick="togglePasswordVisibility('admin-cfg-app-password', 'toggle-admin-cfg-password-icon')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-white/40 hover:text-white transition-colors cursor-pointer focus:outline-none">
+                                        <i data-lucide="eye" id="toggle-admin-cfg-password-icon" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 bg-white/[0.01] border border-white/5 rounded-2xl p-4">
+                        <p class="text-[9px] font-bold text-white/40 uppercase tracking-widest border-b border-white/5 pb-1">Email Signature</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Full Name</label>
+                                <input type="text" id="admin-cfg-sig-name" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="SPOC Name" required />
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Job Title</label>
+                                <input type="text" id="admin-cfg-sig-title" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="Associate Program Manager" />
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Office Address</label>
+                            <input type="text" id="admin-cfg-sig-addr" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10 opacity-60 bg-black/50 cursor-not-allowed" readonly placeholder="Office address" />
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Phone Number</label>
+                                <input type="text" id="admin-cfg-sig-phone" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="+91-xxxxxxxxx" />
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block text-[9px] font-semibold text-white/50 uppercase tracking-wider">Contact Email</label>
+                                <input type="email" id="admin-cfg-sig-email" class="input-glow w-full bg-black/35 text-xs px-3 py-2.5 rounded-lg border border-white/10" placeholder="spoc@company.com" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-2 border-t border-white/5 justify-end">
+                    <button type="button" onclick="closeAdminSettingsModal()" class="px-4 py-2 bg-white/5 hover:bg-white/10 text-xs font-semibold text-white/80 rounded-xl transition-all btn-press border border-white/5 cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-[#EE2C3C] hover:bg-[#d42535] text-xs font-semibold text-white rounded-xl transition-all btn-press shadow-md cursor-pointer">
+                        Save Configurations
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -580,6 +1129,60 @@
     </div>
 
     <!-- ========================================== -->
+    <!-- SPOC HISTORY DETAIL MODAL                 -->
+    <!-- ========================================== -->
+    <div id="spoc-history-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="ultra-glass w-full max-w-3xl rounded-3xl border border-white/10 p-6 flex flex-col gap-4 text-left max-h-[85vh] shadow-2xl">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-white/5 pb-2 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="history" class="w-4 h-4 text-[#EE2C3C]"></i>
+                    <div>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider" id="spoc-history-title">SPOC History</h3>
+                        <p class="text-[9px] text-white/40 uppercase tracking-widest mt-0.5" id="spoc-history-email"></p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeSpocHistoryModal()" class="w-6 h-6 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-all btn-press">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
+            <!-- Stats strip -->
+            <div class="grid grid-cols-3 gap-3 flex-shrink-0">
+                <div class="bg-white/[0.02] border border-white/5 p-3 rounded-xl">
+                    <span class="text-[8px] text-white/40 uppercase tracking-widest block">Total Sent</span>
+                    <span class="text-sm font-bold text-white" id="spoc-history-stat-total">0</span>
+                </div>
+                <div class="bg-green-500/5 border border-green-500/10 p-3 rounded-xl">
+                    <span class="text-[8px] text-green-400/60 uppercase tracking-widest block">Success</span>
+                    <span class="text-sm font-bold text-green-400" id="spoc-history-stat-success">0</span>
+                </div>
+                <div class="bg-red-500/5 border border-red-500/10 p-3 rounded-xl">
+                    <span class="text-[8px] text-red-400/60 uppercase tracking-widest block">Failed</span>
+                    <span class="text-sm font-bold text-red-400" id="spoc-history-stat-failed">0</span>
+                </div>
+            </div>
+
+            <!-- Table of History -->
+            <div class="flex-grow border border-white/5 bg-black/20 rounded-xl overflow-y-auto scrollbar-thin min-h-0">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="border-b border-white/5 bg-white/[0.02] text-white/40 text-[9px] font-bold uppercase tracking-wider sticky top-0 z-10 backdrop-blur-sm">
+                            <th class="p-3 pl-4">Sent To</th>
+                            <th class="p-3">Subject</th>
+                            <th class="p-3">Status</th>
+                            <th class="p-3 pr-4 text-right">Date & Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="spoc-history-table-body" class="divide-y divide-white/5 text-white/80">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
     <!-- CONFIGURATION SETTINGS MODAL               -->
     <!-- ========================================== -->
     <div id="settings-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -643,12 +1246,7 @@
                                 </div>
                             </div>
                             
-                            <div class="mt-3 border-t border-white/5 pt-3">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" id="cfg-test-mode" class="rounded bg-black/35 border-white/10 text-[#EE2C3C] focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5" checked />
-                                    <span class="text-[9px] font-semibold text-white/70 uppercase tracking-wider select-none">Test Mode (Redirect all emails to yourself)</span>
-                                </label>
-                            </div>
+
                         </div>
                         
                         <div class="mt-4 border-t border-white/5 pt-3">
@@ -763,7 +1361,7 @@
     </div>
 
     <!-- Frontend JS logic script link -->
-    <script src="/js/app.js"></script>
+    <script src="/js/app.js?v=1.0.8"></script>
     <script>
         // Render lucide icons once DOM is ready
         document.addEventListener("DOMContentLoaded", function() {

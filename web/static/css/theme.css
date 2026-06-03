@@ -83,9 +83,31 @@ h6 {
 }
 
 html {
-  font-size: 70%;
+  /* Responsive base font: smaller on mobile, normal on desktop */
+  font-size: clamp(60%, 1.5vw, 75%);
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Phone: use full 100% font size feel */
+@media (max-width: 640px) {
+  html {
+    font-size: 85%;
+  }
+}
+
+/* Tablet */
+@media (min-width: 641px) and (max-width: 1024px) {
+  html {
+    font-size: 78%;
+  }
+}
+
+/* Large screens (1440px+) */
+@media (min-width: 1440px) {
+  html {
+    font-size: 80%;
+  }
 }
 
 body {
@@ -525,4 +547,473 @@ h1, h2, h3, h4, h5, h6 {
 .scrollbar-none {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+/* ============================================================
+   LIGHT THEME CONTRAST & VISIBILITY OVERRIDES
+   ============================================================ */
+.light .text-white {
+  color: var(--foreground) !important;
+}
+.light .text-white\/90 {
+  color: rgba(9, 9, 11, 0.9) !important;
+}
+.light .text-white\/85 {
+  color: rgba(9, 9, 11, 0.85) !important;
+}
+.light .text-white\/80 {
+  color: rgba(9, 9, 11, 0.8) !important;
+}
+.light .text-white\/70 {
+  color: rgba(9, 9, 11, 0.7) !important;
+}
+.light .text-white\/60 {
+  color: rgba(9, 9, 11, 0.6) !important;
+}
+.light .text-white\/55 {
+  color: rgba(9, 9, 11, 0.55) !important;
+}
+.light .text-white\/50 {
+  color: rgba(9, 9, 11, 0.5) !important;
+}
+.light .text-white\/40 {
+  color: rgba(9, 9, 11, 0.4) !important;
+}
+.light .text-white\/35 {
+  color: rgba(9, 9, 11, 0.35) !important;
+}
+.light .text-white\/30 {
+  color: rgba(9, 9, 11, 0.3) !important;
+}
+.light .text-white\/25 {
+  color: rgba(9, 9, 11, 0.25) !important;
+}
+.light .text-white\/20 {
+  color: rgba(9, 9, 11, 0.2) !important;
+}
+.light .text-white\/15 {
+  color: rgba(9, 9, 11, 0.15) !important;
+}
+.light .text-white\/10 {
+  color: rgba(9, 9, 11, 0.1) !important;
+}
+.light .text-\[rgba\(255\,255\,255\,0\.6\)\] {
+  color: rgba(9, 9, 11, 0.65) !important;
+}
+.light .shiny-text {
+  background-image: linear-gradient(120deg, #18181b 0%, #18181b 35%, #09090b 50%, #18181b 65%, #18181b 100%) !important;
+}
+
+/* Background Opacities Overrides */
+.light .bg-white\/5 {
+  background-color: rgba(9, 9, 11, 0.05) !important;
+}
+.light .bg-white\/10 {
+  background-color: rgba(9, 9, 11, 0.08) !important;
+}
+.light .bg-white\/\[0\.03\] {
+  background-color: rgba(9, 9, 11, 0.03) !important;
+}
+.light .bg-white\/\[0\.04\] {
+  background-color: rgba(9, 9, 11, 0.04) !important;
+}
+.light .bg-white\/\[0\.01\] {
+  background-color: rgba(9, 9, 11, 0.01) !important;
+}
+.light .bg-white\/\[0\.02\] {
+  background-color: rgba(9, 9, 11, 0.02) !important;
+}
+.light .bg-black\/20 {
+  background-color: rgba(9, 9, 11, 0.03) !important;
+}
+.light .bg-black\/30 {
+  background-color: rgba(9, 9, 11, 0.05) !important;
+}
+.light .bg-black\/40 {
+  background-color: rgba(9, 9, 11, 0.06) !important;
+}
+.light .bg-black\/45 {
+  background-color: rgba(9, 9, 11, 0.08) !important;
+}
+
+/* Border Opacities Overrides */
+.light .border-white\/5 {
+  border-color: rgba(9, 9, 11, 0.08) !important;
+}
+.light .border-white\/10 {
+  border-color: rgba(9, 9, 11, 0.12) !important;
+}
+.light .border-white\/\[0\.05\] {
+  border-color: rgba(9, 9, 11, 0.06) !important;
+}
+.light .border-white\/\[0\.06\] {
+  border-color: rgba(9, 9, 11, 0.08) !important;
+}
+.light .border-white\/\[0\.08\] {
+  border-color: rgba(9, 9, 11, 0.1) !important;
+}
+.light .border-white\/\[0\.12\] {
+  border-color: rgba(9, 9, 11, 0.15) !important;
+}
+
+/* Force legibility of standard semantic tags in light mode */
+.light h1:not(#obo-modal-html-preview *):not(#bulk-modal-html-preview *),
+.light h2:not(#obo-modal-html-preview *):not(#bulk-modal-html-preview *),
+.light h3:not(#obo-modal-html-preview *):not(#bulk-modal-html-preview *),
+.light h4:not(#obo-modal-html-preview *):not(#bulk-modal-html-preview *),
+.light h5:not(#obo-modal-html-preview *):not(#bulk-modal-html-preview *),
+.light h6:not(#obo-modal-html-preview *):not(#bulk-modal-html-preview *) {
+  color: #09090b !important;
+}
+
+/* Ensure red primary branding elements maintain white text & icons */
+.light .bg-\[\#EE2C3C\],
+.light .bg-\[\#EE2C3C\] *,
+.light .bg-red-500,
+.light .bg-red-500 * {
+  color: #ffffff !important;
+}
+
+/* Specific Interactive Controls Overrides */
+.light .input-glow {
+  background-color: #ffffff !important;
+  color: #09090b !important;
+  border-color: rgba(9, 9, 11, 0.15) !important;
+}
+.light .input-glow:focus {
+  border-color: rgba(242, 62, 54, 0.6) !important;
+}
+.light .input-glow::placeholder {
+  color: rgba(9, 9, 11, 0.4) !important;
+}
+.light select option {
+  background-color: #ffffff !important;
+  color: #09090b !important;
+}
+.light .bg-\[rgba\(0\,0\,0\,0\.35\)\] {
+  background-color: #ffffff !important;
+  color: #09090b !important;
+}
+.light .bg-black\/95 {
+  background-color: rgba(0, 0, 0, 0.85) !important;
+}
+
+/* Modal Popups Overrides */
+.light .datepicker {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(9, 9, 11, 0.1) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+.light .month-name {
+  color: #09090b !important;
+}
+.light .arrow {
+  border-color: rgba(9, 9, 11, 0.1) !important;
+  background-color: rgba(9, 9, 11, 0.02) !important;
+  color: #09090b !important;
+}
+.light .arrow:hover {
+  background-color: rgba(9, 9, 11, 0.06) !important;
+}
+.light .day {
+  color: rgba(9, 9, 11, 0.4) !important;
+}
+.light .date {
+  color: #09090b !important;
+}
+.light .date:hover:not(.faded):not(.current-day) {
+  background-color: rgba(9, 9, 11, 0.06) !important;
+  color: #09090b !important;
+}
+.light .faded {
+  color: rgba(9, 9, 11, 0.25) !important;
+}
+.light .tag {
+  border-color: rgba(9, 9, 11, 0.1) !important;
+  background-color: rgba(9, 9, 11, 0.03) !important;
+  color: rgba(9, 9, 11, 0.7) !important;
+}
+.light .tag:hover {
+  background-color: rgba(9, 9, 11, 0.08) !important;
+  color: #09090b !important;
+  border-color: rgba(9, 9, 11, 0.18) !important;
+}
+
+/* Custom Calendar Days Overrides */
+.light .cal-day {
+  color: rgba(9, 9, 11, 0.7) !important;
+}
+.light .cal-day:hover:not(.cal-empty):not(.cal-disabled):not(.cal-selected-start):not(.cal-selected-end)::before {
+  background: rgba(9, 9, 11, 0.06) !important;
+}
+.light .cal-day:hover:not(.cal-empty):not(.cal-disabled) {
+  color: #09090b !important;
+}
+.light .cal-day.cal-today::after {
+  border-color: rgba(9, 9, 11, 0.35) !important;
+}
+.light .cal-day.cal-disabled {
+  color: rgba(9, 9, 11, 0.2) !important;
+}
+.light .cal-day.cal-in-range {
+  background: rgba(238, 44, 60, 0.1) !important;
+  color: #EE2C3C !important;
+}
+
+/* Stats Card Styling */
+.light #dashboard-active .grid-cols-3 > div {
+  background: #ffffff !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02) !important;
+}
+.light #dashboard-active .grid-cols-3 > div:hover {
+  border-color: rgba(9, 9, 11, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* SPOC pills bar */
+.light .spoc-pill:not(.bg-\[\#EE2C3C\]) {
+  background-color: rgba(9, 9, 11, 0.04) !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+  color: rgba(9, 9, 11, 0.6) !important;
+}
+.light .spoc-pill:not(.bg-\[\#EE2C3C\]):hover {
+  background-color: rgba(9, 9, 11, 0.08) !important;
+  color: #09090b !important;
+}
+
+/* Previews Cards Grid elements */
+.light #previews-cards-grid > div {
+  background-color: #ffffff !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02) !important;
+}
+.light #previews-cards-grid > div:hover {
+  background-color: #ffffff !important;
+  border-color: rgba(238, 44, 60, 0.3) !important;
+  box-shadow: 0 8px 24px rgba(238, 44, 60, 0.05) !important;
+}
+.light #previews-cards-grid > div h4 {
+  color: #09090b;
+}
+.light #previews-cards-grid > div:hover h4 {
+  color: #EE2C3C !important;
+}
+
+/* Terminal Log Override */
+.light #terminal-container {
+  background-color: rgba(9, 9, 11, 0.02) !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+}
+.light #terminal-log p {
+  color: rgba(9, 9, 11, 0.75) !important;
+}
+.light #terminal-log span.font-bold {
+  color: #F23E36 !important;
+}
+.light #terminal-container span.font-mono {
+  color: rgba(9, 9, 11, 0.5) !important;
+}
+.light #terminal-container button {
+  color: rgba(9, 9, 11, 0.4) !important;
+}
+.light #terminal-container button:hover {
+  color: #09090b !important;
+}
+
+/* Color codes in log outputs */
+.light .text-\[\#4ade80\] { color: #15803d !important; }
+.light .text-\[\#f87171\] { color: #b91c1c !important; }
+.light .text-\[\#f59e0b\] { color: #b45309 !important; }
+
+/* Sidebar and Portals Background Overrides */
+.light #app-sidebar {
+  background-color: #f4f4f5 !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+}
+.light #app-sidebar nav button:not(.bg-\[\#EE2C3C\]) {
+  color: rgba(9, 9, 11, 0.6) !important;
+}
+.light #app-sidebar nav button:hover:not(.bg-\[\#EE2C3C\]) {
+  background-color: rgba(9, 9, 11, 0.04) !important;
+  color: #09090b !important;
+}
+.light #sb-profile-name {
+  color: #09090b !important;
+}
+.light #sb-profile-role {
+  color: rgba(9, 9, 11, 0.5) !important;
+}
+.light #sb-profile-avatar {
+  box-shadow: 0 2px 8px rgba(238, 44, 60, 0.2) !important;
+}
+.light #app-sidebar button[onclick="handleLogout()"] {
+  background-color: rgba(9, 9, 11, 0.04) !important;
+  color: rgba(9, 9, 11, 0.6) !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+}
+.light #app-sidebar button[onclick="handleLogout()"]:hover {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.light #admin-logs-console {
+  background-color: rgba(9, 9, 11, 0.02) !important;
+  color: #09090b !important;
+}
+.light #admin-spoc-stats-body i {
+  color: rgba(9, 9, 11, 0.3) !important;
+}
+.light .ultra-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.95) 100%) !important;
+  border: 1px solid rgba(9, 9, 11, 0.08) !important;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Modals sub-components contrast overrides */
+.light .ultra-glass button:not(.bg-\[\#EE2C3C\]):not(.bg-red-500):not([onclick="handleLogout()"]) {
+  background-color: rgba(9, 9, 11, 0.03) !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+  color: rgba(9, 9, 11, 0.6) !important;
+}
+.light .ultra-glass button:not(.bg-\[\#EE2C3C\]):not(.bg-red-500):not([onclick="handleLogout()"]):hover {
+  background-color: rgba(9, 9, 11, 0.07) !important;
+  color: #09090b !important;
+}
+.light .ultra-glass input,
+.light .ultra-glass textarea,
+.light .ultra-glass select {
+  color: #09090b !important;
+}
+.light .ultra-glass input::placeholder,
+.light .ultra-glass textarea::placeholder {
+  color: rgba(9, 9, 11, 0.4) !important;
+}
+
+/* Obo & Bulk Modals specifics */
+.light #obo-modal-progress,
+.light #bulk-modal-progress {
+  color: rgba(9, 9, 11, 0.5) !important;
+}
+.light #obo-modal-header-from-name,
+.light #bulk-modal-header-from-name {
+  color: #09090b !important;
+}
+.light #obo-modal-header-from-email,
+.light #bulk-modal-header-from-email {
+  color: rgba(9, 9, 11, 0.5) !important;
+}
+.light #obo-modal-to,
+.light #bulk-modal-to {
+  color: rgba(9, 9, 11, 0.7) !important;
+}
+
+/* Bulk sending console */
+.light #bulk-modal-console {
+  background-color: rgba(9, 9, 11, 0.02) !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+  color: rgba(9, 9, 11, 0.8) !important;
+}
+.light #bulk-modal-console .text-white\/40 {
+  color: rgba(9, 9, 11, 0.4) !important;
+}
+.light #bulk-modal-console .text-white\/60 {
+  color: rgba(9, 9, 11, 0.6) !important;
+}
+.light #bulk-modal-console .text-red-400 {
+  color: #b91c1c !important;
+}
+
+/* Table styling in admin/spoc logs/history lists */
+.light table th {
+  background-color: rgba(9, 9, 11, 0.03) !important;
+  color: rgba(9, 9, 11, 0.5) !important;
+  border-bottom: 1px solid rgba(9, 9, 11, 0.08) !important;
+}
+.light table td {
+  color: rgba(9, 9, 11, 0.75) !important;
+  border-bottom: 1px solid rgba(9, 9, 11, 0.05) !important;
+}
+.light tbody tr:hover {
+  background-color: rgba(9, 9, 11, 0.02) !important;
+}
+
+/* Settings Forms Inner Containers */
+.light #settings-form > div > div,
+.light #admin-settings-form > div > div {
+  background-color: rgba(9, 9, 11, 0.015) !important;
+  border-color: rgba(9, 9, 11, 0.06) !important;
+}
+.light #settings-form p,
+.light #admin-settings-form p {
+  color: rgba(9, 9, 11, 0.5) !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+}
+.light #settings-form label,
+.light #admin-settings-form label {
+  color: rgba(9, 9, 11, 0.6) !important;
+}
+
+/* Admin Dashboard Analytics Panels override */
+.light #panel-stats-mgr .bg-white\/\[0\.02\],
+.light #panel-stats-mgr .bg-white\/\[0\.01\],
+.light #panel-stats-mgr .bg-black\/30 {
+  background-color: #ffffff !important;
+  border-color: rgba(9, 9, 11, 0.08) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Status Badges Overrides */
+.light .bg-amber-500\/10 {
+  background-color: rgba(217, 119, 6, 0.15) !important;
+}
+.light .text-amber-400 {
+  color: #b45309 !important;
+}
+.light .border-amber-500\/15,
+.light .border-amber-500\/20 {
+  border-color: rgba(217, 119, 6, 0.25) !important;
+}
+
+.light .bg-indigo-500\/10 {
+  background-color: rgba(79, 70, 229, 0.15) !important;
+}
+.light .text-indigo-400 {
+  color: #4338ca !important;
+}
+.light .border-indigo-500\/20 {
+  border-color: rgba(79, 70, 229, 0.25) !important;
+}
+
+.light .bg-green-500\/10,
+.light .bg-green-500\/5 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+.light .text-green-400 {
+  color: #065f46 !important;
+}
+.light .border-green-500\/20,
+.light .border-green-500\/10 {
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+.light .bg-red-500\/10,
+.light .bg-red-500\/5 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+.light .text-red-400 {
+  color: #991b1b !important;
+}
+.light .border-red-500\/20,
+.light .border-red-500\/10 {
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+/* Dashboard custom date range inputs color-scheme and styling overrides */
+#dash-start-date, #dash-end-date {
+  color-scheme: dark;
+}
+.light #dash-start-date, .light #dash-end-date {
+  color-scheme: light;
 }
