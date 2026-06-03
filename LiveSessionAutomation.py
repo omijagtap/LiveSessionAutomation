@@ -1385,19 +1385,26 @@ def get_sheet_dates():
         o4_val = sheet.acell('O4').value or ""
         p4_val = sheet.acell('P4').value or ""
         
-        def parse_to_picker(d_str):
+        def parse_to_picker(d_str, default_date=None):
             """Parse various date formats to YYYY-MM-DD"""
-            d_str = d_str.strip()
+            d_str = (d_str or "").strip()
+            if not d_str:
+                return default_date or datetime.now().strftime("%Y-%m-%d")
             for fmt in ("%d-%b-%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
                 try:
                     dt = datetime.strptime(d_str, fmt)
                     return dt.strftime("%Y-%m-%d")
                 except:
                     continue
-            return d_str
+            return default_date or datetime.now().strftime("%Y-%m-%d")
             
-        start_date_picker = parse_to_picker(o4_val)
-        end_date_picker = parse_to_picker(p4_val)
+        today = datetime.now()
+        monday = today - timedelta(days=today.weekday())
+        default_start = monday.strftime("%Y-%m-%d")
+        default_end = (monday + timedelta(days=6)).strftime("%Y-%m-%d")
+            
+        start_date_picker = parse_to_picker(o4_val, default_start)
+        end_date_picker = parse_to_picker(p4_val, default_end)
         
         return jsonify({
             "status": "success",
@@ -1423,8 +1430,16 @@ def fetch_sessions():
     sig_phone = req.get("signature_phone", "").strip()
     sig_email = req.get("signature_email", "").strip()
     
-    if not start_date_raw or not end_date_raw:
-        return jsonify({"status": "error", "message": "Start and End dates are required"}), 400
+    def is_valid_date(d_str):
+        if not d_str: return False
+        try:
+            datetime.strptime(str(d_str).strip(), "%Y-%m-%d")
+            return True
+        except:
+            return False
+            
+    if not is_valid_date(start_date_raw) or not is_valid_date(end_date_raw):
+        return jsonify({"status": "error", "message": "Start and End dates must be valid YYYY-MM-DD strings"}), 400
         
     config = load_config()
     start_date = format_date_to_sheet(start_date_raw)

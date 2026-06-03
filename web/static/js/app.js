@@ -81,6 +81,7 @@ let selectedEndDate = null;
 
 // Format Date YYYY-MM-DD
 function formatDateString(date) {
+    if (!date || isNaN(date.getTime())) return "";
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
@@ -89,8 +90,22 @@ function formatDateString(date) {
 
 // Format Date for Display (e.g. 24 May 2026)
 function formatDateDisplay(date) {
+    if (!date || isNaN(date.getTime())) return "Select Date";
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+// Parse YYYY-MM-DD safely
+function parseDateISO(str) {
+    if (!str || typeof str !== "string") return null;
+    const parts = str.split("-");
+    if (parts.length !== 3) return null;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+    const date = new Date(y, m, d);
+    return isNaN(date.getTime()) ? null : date;
 }
 
 function getMondayBasedDay(date) {
@@ -304,21 +319,33 @@ async function fetchSheetDates() {
         const response = await fetchWithAuth("/api/get-sheet-dates");
         const data = await response.json();
         if (data.status === "success") {
-            if (data.start_date) {
-                const parts = data.start_date.split("-");
-                selectedStartDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            const parsedStart = parseDateISO(data.start_date);
+            if (parsedStart) {
+                selectedStartDate = parsedStart;
                 document.getElementById("start_date").value = data.start_date;
                 document.getElementById("start-date-text").innerText = formatDateDisplay(selectedStartDate);
                 currentStartCalDate = new Date(selectedStartDate);
+            } else {
+                selectedStartDate = null;
+                document.getElementById("start_date").value = "";
+                document.getElementById("start-date-text").innerText = "Select Date";
+                currentStartCalDate = new Date();
             }
-            if (data.end_date) {
-                const parts = data.end_date.split("-");
-                selectedEndDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            const parsedEnd = parseDateISO(data.end_date);
+            if (parsedEnd) {
+                selectedEndDate = parsedEnd;
                 document.getElementById("end_date").value = data.end_date;
                 document.getElementById("end-date-text").innerText = formatDateDisplay(selectedEndDate);
                 currentEndCalDate = new Date(selectedEndDate);
+            } else {
+                selectedEndDate = null;
+                document.getElementById("end_date").value = "";
+                document.getElementById("end-date-text").innerText = "Select Date";
+                currentEndCalDate = new Date();
             }
-            logToTerminal(`Loaded dates: ${data.start_date || 'None'} to ${data.end_date || 'None'}`, "info");
+            const startVal = data.start_date || 'None';
+            const endVal = data.end_date || 'None';
+            logToTerminal(`Loaded dates: ${startVal} to ${endVal}`, "info");
         }
     } catch (err) {
         logToTerminal(`Could not fetch dates: ${err.message}`, "warning");
