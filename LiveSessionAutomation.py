@@ -457,7 +457,10 @@ def provision_default_admin():
     if not db.is_configured():
         return
     admin_email = "omkar.jagtap@upgrad.com"
-    admin_pass = "upGrad@2026"
+    admin_pass = os.environ.get("DEFAULT_ADMIN_PASSWORD")
+    if not admin_pass:
+        print("[PROVISION] DEFAULT_ADMIN_PASSWORD environment variable not set. Skipping default admin provisioning.")
+        return
     admin_name = "Omkar Jagtap"
     
     try:
