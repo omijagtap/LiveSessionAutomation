@@ -695,43 +695,31 @@ def generate_time_link(topic, date_str, time_str):
 def generate_email_body(grader_name, sessions, sig_name, sig_title, sig_phone, sig_email):
     first_name = get_first_name(grader_name)
     
-    body_style = (
-        "font-family: Arial, sans-serif; "
-        "font-size: 14px; color: #334155; line-height: 1.6; "
-        "max-width: 600px; margin: 0 auto; padding: 20px; "
-        "border: 1px solid #e2e8f0; border-radius: 8px; "
-        "background-color: #ffffff;"
-    )
+    body_style = "font-family: Arial, sans-serif; font-size: 14px; color: #000000; line-height: 1.5;"
     table_style = "width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #dddddd;"
-    th_style = "border: 1px solid #dddddd; text-align: left; padding: 10px; background-color: #f2f2f2; font-weight: bold; font-size: 13px;"
-    td_style = "border: 1px solid #dddddd; text-align: left; padding: 10px; font-size: 13px; vertical-align: top;"
+    th_style = "border: 1px solid #dddddd; text-align: left; padding: 8px; background-color: #f2f2f2; font-weight: bold; font-size: 13px;"
+    td_style = "border: 1px solid #dddddd; text-align: left; padding: 8px; font-size: 13px; vertical-align: top;"
     link_style = "color: #1a73e8; text-decoration: underline;"
-    join_link_style = "color: #EE2C3C; font-weight: bold; text-decoration: none;"
     secondary_link_style = "color: #1a73e8; text-decoration: underline; font-size: 11px; display: block; margin-top: 4px;"
 
     html = f"""
     <html>
-    <body style="background-color: #f8fafc; padding: 20px; margin: 0; font-family: Arial, sans-serif;">
-        <div style="{body_style}">
-            <!-- Header Brand -->
-            <p style="margin: 0 0 15px 0; font-size: 20px; font-weight: bold; color: #EE2C3C;">upGrad</p>
-            
-            <p style="margin: 0 0 12px 0;">Hello Dr. {first_name},</p>
-            <p style="margin: 0 0 16px 0;">I hope you are doing well.</p>
-            <p style="margin: 0 0 20px 0;">This is a gentle reminder regarding your upcoming live session with upGrad. We truly appreciate your valuable time and contribution to our learners' journey.</p>
-            
-            <p style="margin: 20px 0 8px 0; font-weight: bold; color: #0f172a; font-size: 14px;">Session Details:</p>
-            
-            <table style="{table_style}">
-                <thead>
-                    <tr>
-                        <th style="{th_style}">Date</th>
-                        <th style="{th_style}">Topic</th>
-                        <th style="{th_style}">Time (IST)</th>
-                        <th style="{th_style}">Session Link</th>
-                    </tr>
-                </thead>
-                <tbody>
+    <body style="{body_style}">
+        <p>Hello Dr. {first_name},</p>
+        <p>I hope you are doing well.</p>
+        <p>This is a gentle reminder regarding your upcoming live session with upGrad. We truly appreciate your valuable time and contribution to our learners' journey.</p>
+        
+        <p style="margin: 15px 0 5px 0; font-weight: bold;">Session Details:</p>
+        <table style="{table_style}">
+            <thead>
+                <tr>
+                    <th style="{th_style}">Date</th>
+                    <th style="{th_style}">Topic</th>
+                    <th style="{th_style}">Time (IST)</th>
+                    <th style="{th_style}">Session Link</th>
+                </tr>
+            </thead>
+            <tbody>
     """
     
     for s in sessions:
@@ -741,45 +729,40 @@ def generate_email_body(grader_name, sessions, sig_name, sig_title, sig_phone, s
         local_time_html = f'<a href="{time_link}" style="{secondary_link_style}">Check Local Time</a>' if time_link else ''
         
         html += f"""
-                    <tr>
-                        <td style="{td_style}">{s['date']}</td>
-                        <td style="{td_style}">{s['topic']}</td>
-                        <td style="{td_style}">{time_val} IST</td>
-                        <td style="{td_style}">
-                            <a href="{s['link']}" style="{join_link_style}">Join Session &rarr;</a>
-                            {local_time_html}
-                        </td>
-                    </tr>
+                <tr>
+                    <td style="{td_style}">{s['date']}</td>
+                    <td style="{td_style}">{s['topic']}</td>
+                    <td style="{td_style}">{time_val} IST</td>
+                    <td style="{td_style}">
+                        <a href="{s['link']}" style="{link_style}">Join Session</a>
+                        {local_time_html}
+                    </td>
+                </tr>
         """
         
     html += f"""
-                </tbody>
-            </table>
-            
-            <!-- Instructions Callout -->
-            <div style="background-color: #f8fafc; border-left: 4px solid #EE2C3C; padding: 16px; margin: 20px 0; border-radius: 4px;">
-                <p style="margin: 0 0 8px 0; font-weight: bold; color: #0f172a; font-size: 13px;">Kindly note the following:</p>
-                <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569; line-height: 1.6;">
-                    <li style="margin-bottom: 6px;">Please join the session 15 minutes before the scheduled start time.</li>
-                    <li style="margin-bottom: 6px;">This will help us complete the necessary audio, video, and technical checks.</li>
-                    <li style="margin-bottom: 0;">Please ensure that you have a stable internet connection.</li>
-                </ul>
-            </div>
-            
-            <p style="margin: 0 0 20px 0;">If you require any assistance, please feel free to reach out. We look forward to your participation.</p>
-            
-            <!-- Signature Block -->
-            <div style="font-size: 13px; color: #333333; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                <p style="margin: 0 0 2px 0;">Best Regards,</p>
-                <p style="margin: 0 0 2px 0; font-weight: bold; color: #000000; font-size: 14px;">{sig_name}</p>
-                <p style="margin: 0 0 2px 0;">{sig_title}</p>
-                <p style="margin: 0 0 2px 0;">{STATIC_OFFICE_ADDRESS}</p>
-                <p style="margin: 8px 0 0 0;"></p>
-                <p style="margin: 0 0 2px 0;">M  {sig_phone}</p>
-                <p style="margin: 0 0 2px 0;">E-mail : <a href="mailto:{sig_email}" style="{link_style}">{sig_email}</a> | <a href="https://www.upgrad.com/" style="{link_style}">https://www.upgrad.com/</a></p>
-                <p style="margin: 0 0 2px 0;">Follow us: <a href="https://facebook.com/upgrad" style="{link_style}">Facebook</a> | <a href="https://twitter.com/upgrad" style="{link_style}">Twitter</a> | <a href="https://linkedin.com/company/upgrad" style="{link_style}">LinkedIn</a> | <a href="https://youtube.com/upgrad" style="{link_style}">YouTube</a></p>
-                <p style="margin: 8px 0 0 0; font-size: 11px; color: #666666;">Customer Care: 1800 210 2020 (Toll-free)</p>
-            </div>
+            </tbody>
+        </table>
+        
+        <p style="margin: 15px 0 5px 0; font-weight: bold;">Kindly note the following:</p>
+        <ul style="margin: 0 0 15px 0; padding-left: 20px; line-height: 1.5;">
+            <li style="margin-bottom: 5px;">Please join the session 15 minutes before the scheduled start time.</li>
+            <li style="margin-bottom: 5px;">This will help us complete the necessary audio, video, and technical checks.</li>
+            <li style="margin-bottom: 0;">Please ensure that you have a stable internet connection.</li>
+        </ul>
+        
+        <p>If you require any assistance, please feel free to reach out. We look forward to your participation.</p>
+        
+        <div style="font-size: 13px; color: #333333; margin-top: 20px; border-top: 1px solid #eeeeee; padding-top: 15px;">
+            <p style="margin: 0 0 2px 0;">Best Regards,</p>
+            <p style="margin: 0 0 2px 0; font-weight: bold; color: #000000; font-size: 14px;">{sig_name}</p>
+            <p style="margin: 0 0 2px 0;">{sig_title}</p>
+            <p style="margin: 0 0 2px 0;">{STATIC_OFFICE_ADDRESS}</p>
+            <p style="margin: 8px 0 0 0;"></p>
+            <p style="margin: 0 0 2px 0;">M  {sig_phone}</p>
+            <p style="margin: 0 0 2px 0;">E-mail : <a href="mailto:{sig_email}" style="{link_style}">{sig_email}</a> | <a href="https://www.upgrad.com/" style="{link_style}">https://www.upgrad.com/</a></p>
+            <p style="margin: 0 0 2px 0;">Follow us: <a href="https://facebook.com/upgrad" style="{link_style}">Facebook</a> | <a href="https://twitter.com/upgrad" style="{link_style}">Twitter</a> | <a href="https://linkedin.com/company/upgrad" style="{link_style}">LinkedIn</a> | <a href="https://youtube.com/upgrad" style="{link_style}">YouTube</a></p>
+            <p style="margin: 8px 0 0 0; font-size: 11px; color: #666666;">Customer Care: 1800 210 2020 (Toll-free)</p>
         </div>
     </body>
     </html>
