@@ -1582,6 +1582,40 @@ function bulkWizardRenderCurrent() {
         avatar.innerText = firstLetter;
     }
     
+    // Update skip button state
+    const skipBtn = document.getElementById("bulk-modal-skip-btn");
+    const skipBtnText = document.getElementById("bulk-modal-skip-btn-text");
+    const skipIcon = document.getElementById("bulk-modal-skip-icon");
+    const statusBadge = document.getElementById("bulk-modal-status-badge");
+    
+    if (skipBtn && skipBtnText && skipIcon) {
+        const isSkipped = smeStatuses[emailKey] === "Skipped";
+        if (isSkipped) {
+            skipBtn.className = "px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer flex items-center gap-1 border border-red-500/35 bg-red-500/15 text-red-400 hover:bg-red-500/25";
+            skipBtnText.textContent = "Skipped";
+            skipIcon.setAttribute("data-lucide", "eye-off");
+            
+            if (statusBadge) {
+                statusBadge.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold tracking-widest uppercase font-mono flex-shrink-0 bg-white/5 text-white/45 border border-white/10";
+                statusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-current opacity-80"></span> SKIPPED';
+            }
+        } else {
+            skipBtn.className = "px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer flex items-center gap-1 border border-white/10 bg-white/5 text-white/70 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20";
+            skipBtnText.textContent = "Skip Email";
+            skipIcon.setAttribute("data-lucide", "eye");
+            
+            if (statusBadge) {
+                const status = smeStatuses[emailKey] || "Draft";
+                let statusClass = "bg-indigo-500/10 text-indigo-400 border border-indigo-500/15";
+                if (status === "Sent") statusClass = "bg-green-500/10 text-green-400 border border-green-500/15";
+                if (status === "Failed") statusClass = "bg-red-500/10 text-red-400 border border-red-500/15";
+                
+                statusBadge.className = `inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold tracking-widest uppercase font-mono flex-shrink-0 ${statusClass}`;
+                statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-current opacity-80"></span> ${status}`;
+            }
+        }
+    }
+
     // Prev button state
     const prevBtn = document.getElementById("bulk-modal-prev-btn");
     if (prevBtn) {
@@ -1603,6 +1637,23 @@ function bulkWizardRenderCurrent() {
     }
     
     lucide.createIcons();
+}
+
+function toggleBulkEmailSkip() {
+    if (bulkEmailsList.length === 0) return;
+    const emailKey = bulkEmailsList[bulkWizardIndex];
+    const isSkipped = smeStatuses[emailKey] === "Skipped";
+    
+    if (isSkipped) {
+        setGraderStatus(emailKey, "Draft");
+        logToTerminal(`Unskipped email draft for ${emailKey}`, "info");
+    } else {
+        setGraderStatus(emailKey, "Skipped");
+        logToTerminal(`Skipped email draft for ${emailKey} in bulk sending`, "warning");
+    }
+    
+    bulkWizardRenderCurrent();
+    initPreviews();
 }
 
 function bulkWizardPrev() {
@@ -1635,8 +1686,11 @@ function bulkWizardNext() {
         if (prevBtn) prevBtn.classList.remove("opacity-30", "pointer-events-none");
         
         // Fill confirmation details
+        const skippedCount = bulkEmailsList.filter(email => smeStatuses[email] === "Skipped").length;
+        const activeCount = bulkEmailsList.length - skippedCount;
+        
         document.getElementById("bulk-modal-confirm-spoc").innerText = activeSpocFilter === "all" ? "All SPOCs" : activeSpocFilter;
-        document.getElementById("bulk-modal-confirm-count").innerText = `${bulkEmailsList.length} Emails`;
+        document.getElementById("bulk-modal-confirm-count").innerText = `${activeCount} Emails to Send (${skippedCount} Skipped)`;
         
         lucide.createIcons();
     }
@@ -1665,17 +1719,32 @@ async function bulkWizardExecute() {
     
     reportData = []; // Clear in-memory report at start of bulk execute
     
+    const skippedCount = bulkEmailsList.filter(email => smeStatuses[email] === "Skipped").length;
+    const activeCount = bulkEmailsList.length - skippedCount;
+    
     for (let i = 0; i < bulkEmailsList.length; i++) {
         const email = bulkEmailsList[i];
         const info = gradersData[email];
         const sentAt = new Date().toLocaleString();
         
+        // Check if this item is marked to skip
+        if (smeStatuses[email] === "Skipped") {
+            consoleLog.innerHTML += `<p class="text-white/45">> Queue [${i+1}/${bulkEmailsList.length}]: Skipping ${info.name} (marked to skip)...</p>`;
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+            reportData.push({ name: info.name, email: info.email, status: "Skipped", details: "Manually skipped during bulk review", sentAt });
+            
+            // Update stats progress
+            const percent = Math.round(((i + 1) / bulkEmailsList.length) * 100);
+            progressText.innerText = `${i + 1} / ${bulkEmailsList.length} Emails (${percent}%)`;
+            continue;
+        }
+        
         consoleLog.innerHTML += `<p class="text-white/60">> Queue [${i+1}/${bulkEmailsList.length}]: ${info.name} (SPOC: ${info.spoc_display || info.spoc_email_display})...</p>`;
         consoleLog.scrollTop = consoleLog.scrollHeight;
         
         // Update stats progress
-        const percent = Math.round(((i) / bulkEmailsList.length) * 100);
-        progressText.innerText = `${i} / ${bulkEmailsList.length} Emails (${percent}%)`;
+        const percent = Math.round(((i + 1) / bulkEmailsList.length) * 100);
+        progressText.innerText = `${i + 1} / ${bulkEmailsList.length} Emails (${percent}%)`;
 
         // Fail if SPOC has no credentials configured (strictly enforce credentials presence)
         if (!info.has_credentials) {
@@ -1693,7 +1762,6 @@ async function bulkWizardExecute() {
                 subject: info.subject,
                 body_html: info.body_html,
                 spoc_email: info.spoc_email_display || ""
-                // Credentials are resolved server-side from SPOC's Supabase settings
             };
             
             const response = await fetchWithAuth("/api/send-email", {
@@ -1732,7 +1800,7 @@ async function bulkWizardExecute() {
         document.getElementById("bulk-modal-sending-state").classList.add("hidden");
         document.getElementById("bulk-modal-completed-state").classList.remove("hidden");
         document.getElementById("bulk-modal-completed-summary").innerText = 
-            `Successfully processed all ${bulkEmailsList.length} email queue drafts.`;
+            `Processed all ${bulkEmailsList.length} drafts: ${activeCount} sent, ${skippedCount} skipped.`;
         lucide.createIcons();
     }, 1000);
 }

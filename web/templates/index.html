@@ -1048,6 +1048,11 @@
                         <span class="text-white/20 flex-shrink-0">→</span>
                         <span class="text-white/55 font-mono text-[10px] truncate" id="bulk-modal-to">recipient@email.com</span>
                     </div>
+                    <!-- Skip Toggle Button -->
+                    <button type="button" id="bulk-modal-skip-btn" onclick="toggleBulkEmailSkip()" class="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer flex items-center gap-1 border border-white/10 bg-white/5 text-white/70 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20">
+                        <i data-lucide="eye" class="w-3.5 h-3.5" id="bulk-modal-skip-icon"></i>
+                        <span id="bulk-modal-skip-btn-text">Skip Email</span>
+                    </button>
                     <span id="bulk-modal-spoc-badge" class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0">SPOC: N/A</span>
                     <span class="text-[9px] text-white/20 font-mono flex-shrink-0">Just now</span>
                 </div>
