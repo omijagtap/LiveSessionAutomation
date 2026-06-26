@@ -1815,6 +1815,11 @@ def send_single_email():
             db.log_email_sent(sender_email, original_to, subject, spoc_email, "Failed", err_msg)
         return jsonify({"status": "error", "message": f"SMTP Error: {err_msg}"}), 500
 
+@app.route('/favicon.ico')
+@app.route('/upgrad_logo.png')
+def serve_favicon():
+    return send_from_directory(app.static_folder, 'upgrad_logo.png')
+
 # Global error handlers — always return JSON so the frontend never receives HTML
 @app.errorhandler(404)
 def not_found(e):
