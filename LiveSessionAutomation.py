@@ -692,76 +692,110 @@ def generate_time_link(topic, date_str, time_str):
     except:
         return ""
 
-def generate_email_body(grader_name, sessions, sig_name, sig_title, sig_phone, sig_email):
-    first_name = get_first_name(grader_name)
-    
-    body_style = "font-family: Arial, sans-serif; font-size: 14px; color: #000000; line-height: 1.5;"
-    table_style = "width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #dddddd;"
-    th_style = "border: 1px solid #dddddd; text-align: left; padding: 8px; background-color: #f2f2f2; font-weight: bold; font-size: 13px;"
-    td_style = "border: 1px solid #dddddd; text-align: left; padding: 8px; font-size: 13px; vertical-align: top;"
-    link_style = "color: #1a73e8; text-decoration: underline;"
-    secondary_link_style = "color: #1a73e8; text-decoration: underline; font-size: 11px; display: block; margin-top: 4px;"
 
-    html = f"""
-    <html>
-    <body style="{body_style}">
-        <p>Hello Dr. {first_name},</p>
-        <p>I hope you are doing well.</p>
-        <p>This is a gentle reminder regarding your upcoming live session with upGrad. We truly appreciate your valuable time and contribution to our learners' journey.</p>
-        
-        <p style="margin: 15px 0 5px 0; font-weight: bold;">Session Details:</p>
-        <table style="{table_style}">
-            <thead>
-                <tr>
-                    <th style="{th_style}">Date</th>
-                    <th style="{th_style}">Topic</th>
-                    <th style="{th_style}">Time (IST)</th>
-                    <th style="{th_style}">Session Link</th>
-                </tr>
-            </thead>
-            <tbody>
-    """
+def generate_email_body(name, sessions, signature_name="Team", signature_title="Associate Program Manager", signature_phone="", signature_email="", has_prism=False, has_normal=True):
+    """Generate professional HTML email body with table of sessions."""
+    rows = ""
+    is_draft_1 = not has_prism
+    is_mixed = has_prism and has_normal
+    is_pure_prism = has_prism and not has_normal
     
     for s in sessions:
-        time_link = generate_time_link(s['topic'], s['date'], s['time_from'])
-        time_val = f"{s['time_from']} - {s['time_to']}"
-        
-        local_time_html = f'<a href="{time_link}" style="{secondary_link_style}">Check Local Time</a>' if time_link else ''
-        
-        html += f"""
-                <tr>
-                    <td style="{td_style}">{s['date']}</td>
-                    <td style="{td_style}">{s['topic']}</td>
-                    <td style="{td_style}">{time_val} IST</td>
-                    <td style="{td_style}">
-                        <a href="{s['link']}" style="{link_style}">Join Session</a>
-                        {local_time_html}
-                    </td>
-                </tr>
+        if is_pure_prism:
+            rows += f"""
+            <tr>
+                <td style="padding:10px;border:1px solid #ddd;">{s.get('date','')}</td>
+                <td style="padding:10px;border:1px solid #ddd;">{s.get('topic','')}</td>
+                <td style="padding:10px;border:1px solid #ddd;">{s.get('time_from','')} - {s.get('time_to','')}</td>
+                <td style="padding:10px;border:1px solid #ddd;"><a href="{s.get('link','')}" style="color:#007bff;text-decoration:none;">Backup Link</a></td>
+            </tr>
+            """
+        else:
+            link_text = "Backup Link" if s.get('is_prism') else "Join Link"
+            rows += f"""
+            <tr>
+                <td style="padding:10px;border:1px solid #ddd;">{s.get('date','')}</td>
+                <td style="padding:10px;border:1px solid #ddd;">{s.get('course','')}</td>
+                <td style="padding:10px;border:1px solid #ddd;">{s.get('cohort','')}</td>
+                <td style="padding:10px;border:1px solid #ddd;">{s.get('topic','')}</td>
+                <td style="padding:10px;border:1px solid #ddd;">{s.get('time_from','')} - {s.get('time_to','')}</td>
+                <td style="padding:10px;border:1px solid #ddd;"><a href="{s.get('link','')}" style="color:#007bff;text-decoration:none;">{link_text}</a></td>
+            </tr>
+            """
+            
+    if is_pure_prism:
+        headers = """
+        <tr style="background-color: #f8f9fa; text-align: left;">
+            <th style="padding:10px;border:1px solid #ddd;">Date</th>
+            <th style="padding:10px;border:1px solid #ddd;">Topic</th>
+            <th style="padding:10px;border:1px solid #ddd;">Time (IST)</th>
+            <th style="padding:10px;border:1px solid #ddd;">Backup Link</th>
+        </tr>
         """
+    else:
+        headers = """
+        <tr style="background-color: #f8f9fa; text-align: left;">
+            <th style="padding:10px;border:1px solid #ddd;">Date</th>
+            <th style="padding:10px;border:1px solid #ddd;">Course</th>
+            <th style="padding:10px;border:1px solid #ddd;">Cohort</th>
+            <th style="padding:10px;border:1px solid #ddd;">Topic</th>
+            <th style="padding:10px;border:1px solid #ddd;">Time (IST)</th>
+            <th style="padding:10px;border:1px solid #ddd;">Session Link</th>
+        </tr>
+        """
+
+    if is_draft_1:
+        instructions = """
+        <ul style="margin-top: 0;">
+            <li>Please join the session 15 minutes before the scheduled start time.</li>
+            <li>Joining early will allow us to complete the necessary audio, video, and technical checks before the session begins.</li>
+            <li>Please ensure that you have a stable internet connection throughout the session.</li>
+        </ul>
+        """
+        closing = "<p>If you require any assistance, please feel free to reach out. We look forward to your participation.</p>"
+    else:
+        instructions = """
+        <ul style="margin-top: 0;">
+            <li>Please join the session at least 15 minutes before the scheduled start time.</li>
+            <li>Kindly log in to the Prism platform using your Instructor role and join the session directly through the platform.</li>
+            <li>In case you encounter any issues accessing the session via Prism, a backup joining link has been provided in the table above. However, we request that you primarily use the direct login through the platform.</li>
+            <li>Joining early will allow us to complete the necessary audio, video, and technical checks before the session begins.</li>
+            <li>Please ensure that you have a stable internet connection throughout the session.</li>
+        </ul>
+        """
+        closing = "<p>If you require any assistance, please do not hesitate to reach out. We look forward to your participation and wish you a smooth and successful session.</p>"
         
-    html += f"""
+    html = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+        <p>Hello <strong>{name}</strong>,</p>
+        <p>I hope you are doing well.</p>
+        <p>This is a gentle reminder regarding your upcoming live session with upGrad. We truly appreciate your valuable time and contribution to our learners' learning journey.</p>
+        
+        <h4 style="margin-bottom: 5px; color: #2c3e50;">Session Details:</h4>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                {headers}
+            </thead>
+            <tbody>
+                {rows}
             </tbody>
         </table>
         
-        <p style="margin: 15px 0 5px 0; font-weight: bold;">Kindly note the following:</p>
-        <ul style="margin: 0 0 15px 0; padding-left: 20px; line-height: 1.5;">
-            <li style="margin-bottom: 5px;">Please join the session 15 minutes before the scheduled start time.</li>
-            <li style="margin-bottom: 5px;">This will help us complete the necessary audio, video, and technical checks.</li>
-            <li style="margin-bottom: 0;">Please ensure that you have a stable internet connection.</li>
-        </ul>
+        <p>Kindly note the following:</p>
+        {instructions}
         
-        <p>If you require any assistance, please feel free to reach out. We look forward to your participation.</p>
+        {closing}
         
         <div style="font-size: 13px; color: #333333; margin-top: 20px; border-top: 1px solid #eeeeee; padding-top: 15px;">
             <p style="margin: 0 0 2px 0;">Best Regards,</p>
-            <p style="margin: 0 0 2px 0; font-weight: bold; color: #000000; font-size: 14px;">{sig_name}</p>
-            <p style="margin: 0 0 2px 0;">{sig_title}</p>
-            <p style="margin: 0 0 2px 0;">{STATIC_OFFICE_ADDRESS}</p>
+            <p style="margin: 0 0 2px 0; font-weight: bold; color: #000000; font-size: 14px;">{signature_name}</p>
+            <p style="margin: 0 0 2px 0;">{signature_title}</p>
+            <p style="margin: 0 0 2px 0;">upGrad Education Private Limited | Nishuvi, 78-A, Dr. Annie Besant Road, Worli, Mumbai - 400018</p>
             <p style="margin: 8px 0 0 0;"></p>
-            <p style="margin: 0 0 2px 0;">M  {sig_phone}</p>
-            <p style="margin: 0 0 2px 0;">E-mail : <a href="mailto:{sig_email}" style="{link_style}">{sig_email}</a> | <a href="https://www.upgrad.com/" style="{link_style}">https://www.upgrad.com/</a></p>
-            <p style="margin: 0 0 2px 0;">Follow us: <a href="https://facebook.com/upgrad" style="{link_style}">Facebook</a> | <a href="https://twitter.com/upgrad" style="{link_style}">Twitter</a> | <a href="https://linkedin.com/company/upgrad" style="{link_style}">LinkedIn</a> | <a href="https://youtube.com/upgrad" style="{link_style}">YouTube</a></p>
+            {f'<p style="margin: 0 0 2px 0;">M  {signature_phone}</p>' if signature_phone and signature_phone.strip() else ''}
+            <p style="margin: 0 0 2px 0;">E-mail : <a href="mailto:{signature_email}" style="color: #1a73e8; text-decoration: underline;">{signature_email}</a> | <a href="https://www.upgrad.com/" style="color: #1a73e8; text-decoration: underline;">https://www.upgrad.com/</a></p>
+            <p style="margin: 0 0 2px 0;">Follow us: <a href="https://facebook.com/upgrad" style="color: #1a73e8; text-decoration: underline;">Facebook</a> | <a href="https://twitter.com/upgrad" style="color: #1a73e8; text-decoration: underline;">Twitter</a> | <a href="https://linkedin.com/company/upgrad" style="color: #1a73e8; text-decoration: underline;">LinkedIn</a> | <a href="https://youtube.com/upgrad" style="color: #1a73e8; text-decoration: underline;">YouTube</a></p>
             <p style="margin: 8px 0 0 0; font-size: 11px; color: #666666;">Customer Care: 1800 210 2020 (Toll-free)</p>
         </div>
     </body>
@@ -783,8 +817,8 @@ def group_sessions_by_grader(data):
     """
     graders = {}
     for row in data:
-        name = str(row.get("Grader", "Professor")).strip()
-        email = str(row.get("Grader Email", "")).strip()
+        name = str(row.get("Professor Name", "Professor")).strip()
+        email = str(row.get("Professor Email", "")).strip()
         if not email or "@" not in email:
             continue
 
@@ -807,26 +841,37 @@ def group_sessions_by_grader(data):
                         break
 
         spoc_name = extract_name_from_email(spoc_email)
-
-        # Unique key grouping grader email AND spoc email
-        key = f"{email.lower()}:{spoc_email.lower()}"
+        spoc_email = spoc_email.lower()
+        
+        cohort_id = str(row.get("Cohort ID", "")).strip()
+        is_prism = cohort_id.startswith("ENG-")
+        
+        key = f"{email.lower()}_{spoc_email}"
         if key not in graders:
             graders[key] = {
                 "name": name,
                 "email": email,
-                "sessions": [],
+                "spoc_name": extract_name_from_email(spoc_email),
                 "spoc_email": spoc_email,
-                "spoc_name": spoc_name
+                "sessions": [],
+                "has_prism_session": False,
+                "has_normal_session": False
             }
+            
+        if is_prism:
+            graders[key]["has_prism_session"] = True
+        else:
+            graders[key]["has_normal_session"] = True
 
         graders[key]["sessions"].append({
-            "date": row.get("Date"),
-            "course": row.get("Course"),
-            "cohort": row.get("Cohort"),
+            "date": row.get("Session Date"),
+            "course": row.get("Program Name"),
+            "cohort": cohort_id,
             "topic": row.get("Topic"),
-            "time_from": row.get("Time From"),
-            "time_to": row.get("Time to"),
+            "time_from": row.get("StartTime"),
+            "time_to": row.get("EndTime"),
             "link": row.get("Session Link"),
+            "is_prism": is_prism,
             "spoc": spoc_name,
             "spoc_email": spoc_email
         })
@@ -1479,7 +1524,7 @@ def fetch_sessions():
         valid_records = []
         if all_rows and len(all_rows) > 1:
             headers = [str(h).strip() for h in all_rows[0]]
-            headers_limit = headers[:10]
+            headers_limit = headers[:15]
             
             for row in all_rows[1:]:
                 row_dict = {}
@@ -1489,7 +1534,7 @@ def fetch_sessions():
                     else:
                         row_dict[h] = ""
                 
-                if row_dict.get("Date", "") != "" or row_dict.get("Grader Email", "") != "":
+                if row_dict.get("Session Date", "") != "" or row_dict.get("Professor Email", "") != "":
                     valid_records.append(row_dict)
                 
         graders = group_sessions_by_grader(valid_records)
@@ -1548,17 +1593,20 @@ def fetch_sessions():
             else:
                 date_str = ""
 
-            if len(info['sessions']) > 1:
-                subject = f"Reminder: Live Sessions with {info['name']}"
+            if len(dates) > 1:
+                date_display = f"[{date_str}]"
             else:
-                first_s = info['sessions'][0]
-                cohort = first_s.get('cohort', 'Live Session')
-                topic = first_s.get('topic', 'Upcoming Session')
-                subject = f"Reminder: {cohort} | {topic}"
-            if date_str:
-                subject += f" | {date_str}"
+                date_display = date_str
+            
+            subject = f"Reminder for upcoming Live session | {info['name']} | {date_display}"
                 
-            body_html = generate_email_body(info['name'], info['sessions'], s_name, s_title, s_phone, s_email)
+            body_html = generate_email_body(
+                info['name'], 
+                info['sessions'], 
+                s_name, s_title, s_phone, s_email,
+                has_prism=info.get('has_prism_session', False),
+                has_normal=info.get('has_normal_session', True)
+            )
             spoc_name_val = info.get('spoc_name', extract_name_from_email(spoc_email))
             spoc_display = spoc_name_val
             
