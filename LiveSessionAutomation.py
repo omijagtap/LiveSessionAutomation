@@ -765,12 +765,19 @@ def generate_email_body(name, sessions, signature_name="Team", signature_title="
         """
         closing = "<p>If you require any assistance, please do not hesitate to reach out. We look forward to your participation and wish you a smooth and successful session.</p>"
         
+    if name == "Professor":
+        greeting = f"<p>Dear <strong>Professor</strong>,</p>"
+    else:
+        greeting = f"<p>Hello <strong>{name}</strong>,</p>"
+
     html = f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-        <p>Hello <strong>{name}</strong>,</p>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        {greeting}
+        
         <p>I hope you are doing well.</p>
-        <p>This is a gentle reminder regarding your upcoming live session with upGrad. We truly appreciate your valuable time and contribution to our learners' learning journey.</p>
+        
+        <p>This is a gentle reminder regarding your upcoming live session with upGrad. We truly appreciate your valuable time and contribution to our learners' learning journey.</p></p>
         
         <h4 style="margin-bottom: 5px; color: #2c3e50;">Session Details:</h4>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
@@ -797,6 +804,10 @@ def generate_email_body(name, sessions, signature_name="Team", signature_title="
             <p style="margin: 0 0 2px 0;">E-mail : <a href="mailto:{signature_email}" style="color: #1a73e8; text-decoration: underline;">{signature_email}</a> | <a href="https://www.upgrad.com/" style="color: #1a73e8; text-decoration: underline;">https://www.upgrad.com/</a></p>
             <p style="margin: 0 0 2px 0;">Follow us: <a href="https://facebook.com/upgrad" style="color: #1a73e8; text-decoration: underline;">Facebook</a> | <a href="https://twitter.com/upgrad" style="color: #1a73e8; text-decoration: underline;">Twitter</a> | <a href="https://linkedin.com/company/upgrad" style="color: #1a73e8; text-decoration: underline;">LinkedIn</a> | <a href="https://youtube.com/upgrad" style="color: #1a73e8; text-decoration: underline;">YouTube</a></p>
             <p style="margin: 8px 0 0 0; font-size: 11px; color: #666666;">Customer Care: 1800 210 2020 (Toll-free)</p>
+        </div>
+        
+        <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #999999; font-style: italic;">
+            Note: This is an automated system-generated email.
         </div>
     </body>
     </html>
@@ -1598,10 +1609,13 @@ def fetch_sessions():
             else:
                 date_display = date_str
             
-            subject = f"Reminder for upcoming Live session | {info['name']} | {date_display}"
+            is_multiple_professors = "," in info['email'] or ";" in info['email']
+            display_name = "Professor" if is_multiple_professors else info['name']
+
+            subject = f"Reminder for upcoming Live session | {display_name} | {date_display}"
                 
             body_html = generate_email_body(
-                info['name'], 
+                display_name, 
                 info['sessions'], 
                 s_name, s_title, s_phone, s_email,
                 has_prism=info.get('has_prism_session', False),
