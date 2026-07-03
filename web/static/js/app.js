@@ -777,10 +777,8 @@ function initPreviews() {
     if (oboStartBtn) oboStartBtn.classList.remove("hidden");
     
     // Hide/show bulk send button based on user role check
-    const isUser = currentUser && currentUser.role === "User";
     if (bulkStartBtn) {
-        if (isUser) bulkStartBtn.classList.add("hidden");
-        else bulkStartBtn.classList.remove("hidden");
+        bulkStartBtn.classList.remove("hidden");
     }
     
     smeEmails.forEach((email) => {
@@ -1861,13 +1859,9 @@ async function checkSession() {
                 adminNavBtn.classList.add("hidden");
             }
             
-            // Role Based UI tweaks (disable/hide bulk send for regular users)
+            // Role Based UI tweaks
             const bulkBtn = document.getElementById("btn-start-bulk");
-            if (currentUser.role === "User") {
-                if (bulkBtn) bulkBtn.classList.add("hidden");
-            } else {
-                if (bulkBtn) bulkBtn.classList.remove("hidden");
-            }
+            // Bulk send is now allowed for users (backend scopes it to their sessions)
             
             // Hide login screen and show main content
             hideLoginOverlay();
