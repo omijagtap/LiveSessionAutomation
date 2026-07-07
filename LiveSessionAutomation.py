@@ -664,32 +664,27 @@ def get_first_name(full_name):
 
 def generate_time_link(topic, date_str, time_str):
     try:
-        date_str = str(date_str).split()[0]
-        dt_obj = None
-        for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%m/%d/%Y', '%d-%b-%Y', '%Y-%b-%d', '%Y-%m-%d %H:%M:%S'):
-            try:
-                dt_obj = datetime.strptime(date_str, fmt)
-                break
-            except:
-                continue
+        import dateutil.parser
         
-        if not dt_obj: return ""
-            
-        time_obj = None
+        # Clean inputs
+        date_str = str(date_str).strip()
         time_str = str(time_str).strip()
-        for fmt in ('%H:%M', '%I:%M %p', '%I:%M%p', '%H:%M:%S'):
-            try:
-                time_obj = datetime.strptime(time_str, fmt)
-                break
-            except:
-                continue
-                
-        if not time_obj: return ""
-            
-        iso_str = dt_obj.strftime('%Y%m%d') + "T" + time_obj.strftime('%H%M')
+        
+        # Parse the combined date and time string using dateutil
+        combined_str = f"{date_str} {time_str}"
+        dt_obj = dateutil.parser.parse(combined_str)
+        
+        # Format for timeanddate.com: YYYYMMDDTHHMM
+        iso_str = dt_obj.strftime('%Y%m%d') + "T" + dt_obj.strftime('%H%M')
+        
+        # URL encode the topic for the msg parameter
         encoded_msg = urllib.parse.quote(str(topic))
-        return f"https://www.timeanddate.com/worldclock/fixedtime.html?msg={encoded_msg}&iso={iso_str}&p1=54"
-    except:
+        
+        # Construct link with p1=176 (India / New Delhi timezone reference)
+        link = f"https://www.timeanddate.com/worldclock/fixedtime.html?msg={encoded_msg}&iso={iso_str}&p1=176"
+        return link
+    except Exception as e:
+        print(f"DEBUG time link error: {e} - args: ({date_str}, {time_str})")
         return ""
 
 
@@ -708,6 +703,7 @@ def generate_email_body(name, sessions, signature_name="Team", signature_title="
                 <td style="padding:10px;border:1px solid #ddd;">{s.get('topic','')}</td>
                 <td style="padding:10px;border:1px solid #ddd;">{s.get('time_from','')} - {s.get('time_to','')}</td>
                 <td style="padding:10px;border:1px solid #ddd;"><a href="{s.get('link','')}" style="color:#007bff;text-decoration:none;">Backup Link</a></td>
+                <td style="padding:10px;border:1px solid #ddd;"><a href="{s.get('time_link','')}" style="color:#007bff;text-decoration:none;">Check Time</a></td>
             </tr>
             """
         else:
@@ -720,6 +716,7 @@ def generate_email_body(name, sessions, signature_name="Team", signature_title="
                 <td style="padding:10px;border:1px solid #ddd;">{s.get('topic','')}</td>
                 <td style="padding:10px;border:1px solid #ddd;">{s.get('time_from','')} - {s.get('time_to','')}</td>
                 <td style="padding:10px;border:1px solid #ddd;"><a href="{s.get('link','')}" style="color:#007bff;text-decoration:none;">{link_text}</a></td>
+                <td style="padding:10px;border:1px solid #ddd;"><a href="{s.get('time_link','')}" style="color:#007bff;text-decoration:none;">Check Time</a></td>
             </tr>
             """
             
@@ -730,6 +727,7 @@ def generate_email_body(name, sessions, signature_name="Team", signature_title="
             <th style="padding:10px;border:1px solid #ddd;">Topic</th>
             <th style="padding:10px;border:1px solid #ddd;">Time (IST)</th>
             <th style="padding:10px;border:1px solid #ddd;">Backup Link</th>
+            <th style="padding:10px;border:1px solid #ddd;">Check your local time</th>
         </tr>
         """
     else:
@@ -741,6 +739,7 @@ def generate_email_body(name, sessions, signature_name="Team", signature_title="
             <th style="padding:10px;border:1px solid #ddd;">Topic</th>
             <th style="padding:10px;border:1px solid #ddd;">Time (IST)</th>
             <th style="padding:10px;border:1px solid #ddd;">Session Link</th>
+            <th style="padding:10px;border:1px solid #ddd;">Check your local time</th>
         </tr>
         """
 
@@ -874,6 +873,8 @@ def group_sessions_by_grader(data):
         else:
             graders[key]["has_normal_session"] = True
 
+        time_link = generate_time_link(row.get("Topic"), row.get("Session Date"), row.get("StartTime"))
+
         graders[key]["sessions"].append({
             "date": row.get("Session Date"),
             "course": row.get("Program Name"),
@@ -884,7 +885,8 @@ def group_sessions_by_grader(data):
             "link": row.get("Session Link"),
             "is_prism": is_prism,
             "spoc": spoc_name,
-            "spoc_email": spoc_email
+            "spoc_email": spoc_email,
+            "time_link": time_link
         })
     return graders
 
