@@ -1715,7 +1715,7 @@ def verify_email():
         msg.attach(MIMEText(body_html, 'html'))
 
         # timeout=15 prevents Render proxy from killing the request with HTML 502/504
-        server = smtplib.SMTP('smtp.office365.com', 587, timeout=15)
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=15)
         server.starttls()
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, [sender_email], msg.as_string())
@@ -1794,7 +1794,7 @@ def send_single_email():
     msg.attach(MIMEText(body_html, 'html'))
 
     try:
-        server = smtplib.SMTP('smtp.office365.com', 587, timeout=15)
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=15)
         server.starttls()
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, all_recipients, msg.as_string())
