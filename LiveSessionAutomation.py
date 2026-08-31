@@ -833,14 +833,13 @@ def group_sessions_by_grader(data):
                 break
         if not name:
             for k, v in row.items():
-                if "professor name" in k.lower() or "prof name" in k.lower() or "instructor name" in k.lower() or "grader name" in k.lower():
-                    if v and str(v).strip():
+                if "professor name" in k.lower() or "prof name" in k.lower() or "instructor name" in k.lower() or "grader name" in k.lower() or "name" in k.lower():
+                    if v and str(v).strip() and "@" not in str(v):
                         name = str(v).strip()
                         break
-        if not name or name.lower() == "nan":
-            name = "Professor"
-
         email = str(row.get("Professor Email", "")).strip()
+        if not name or name.lower() == "nan":
+            name = extract_name_from_email(email) if email and "@" in email else "Professor"
         if not email or "@" not in email:
             continue
 
