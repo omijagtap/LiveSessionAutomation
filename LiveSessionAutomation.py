@@ -688,7 +688,7 @@ def generate_time_link(topic, date_str, time_str):
         return ""
 
 
-def generate_email_body(name, sessions, signature_name="Team", signature_title="Associate Program Manager", signature_phone="", signature_email="", has_prism=False, has_normal=True):
+def generate_email_body(name, sessions, signature_name="Team", signature_title="Associate Program Manager", signature_phone="", signature_email="", has_prism=False, has_normal=True, is_office_hour_or_doubt=False):
     """Generate professional HTML email body with table of sessions."""
     rows = ""
     is_draft_1 = not has_prism
@@ -764,10 +764,25 @@ def generate_email_body(name, sessions, signature_name="Team", signature_title="
         """
         closing = "<p>If you require any assistance, please do not hesitate to reach out. We look forward to your participation and wish you a smooth and successful session.</p>"
         
-    if name == "Professor":
-        greeting = f"<p>Dear <strong>Professor</strong>,</p>"
+    office_kw = ["office hour", "office hours", "oh"]
+    doubt_kw = ["doubt resolution", "doubts resolution", "doubt clearing", "doubt session", "q&a", "q & a"]
+    topics = [str(s.get('topic', '')).strip() for s in sessions if s.get('topic')]
+    
+    is_oh_or_doubt = is_office_hour_or_doubt or any(
+        any(kw in t.lower() for kw in office_kw + doubt_kw) for t in topics
+    )
+
+    if is_oh_or_doubt:
+        greeting_title = "Grader" if name == "Professor" else name
     else:
-        greeting = f"<p>Hello <strong>{name}</strong>,</p>"
+        greeting_title = name
+
+    if greeting_title == "Professor":
+        greeting = f"<p>Hello <strong>Professor</strong>,</p>"
+    elif greeting_title == "Grader":
+        greeting = f"<p>Hello <strong>Grader</strong>,</p>"
+    else:
+        greeting = f"<p>Hello <strong>{greeting_title}</strong>,</p>"
 
     html = f"""
     <html>
@@ -1614,14 +1629,35 @@ def fetch_sessions():
             is_multiple_professors = "," in info['email'] or ";" in info['email']
             display_name = "Professor" if is_multiple_professors else info['name']
 
-            subject = f"Reminder for upcoming Live session | {display_name} | {date_display}"
+            # Extract topics and determine bifurcated session label for subject line
+            topics = [str(s.get('topic', '')).strip() for s in info['sessions'] if s.get('topic')]
+            office_kw = ["office hour", "office hours", "oh"]
+            doubt_kw = ["doubt resolution", "doubts resolution", "doubt clearing", "doubt session", "q&a", "q & a"]
+
+            has_office_hour = any(any(kw in t.lower() for kw in office_kw) for t in topics)
+            has_doubt_res = any(any(kw in t.lower() for kw in doubt_kw) for t in topics)
+
+            if has_office_hour:
+                session_label = "Office Hours session"
+            elif has_doubt_res:
+                session_label = "Doubt Resolution session"
+            else:
+                if len(topics) == 1 and topics[0]:
+                    session_label = f"Live session on {topics[0]}"
+                elif len(topics) > 1:
+                    session_label = "Live sessions"
+                else:
+                    session_label = "Live session"
+
+            subject = f"Reminder for upcoming {session_label} | {display_name} | {date_display}"
                 
             body_html = generate_email_body(
                 display_name, 
                 info['sessions'], 
                 s_name, s_title, s_phone, s_email,
                 has_prism=info.get('has_prism_session', False),
-                has_normal=info.get('has_normal_session', True)
+                has_normal=info.get('has_normal_session', True),
+                is_office_hour_or_doubt=(has_office_hour or has_doubt_res)
             )
             spoc_name_val = info.get('spoc_name', extract_name_from_email(spoc_email))
             spoc_display = spoc_name_val
