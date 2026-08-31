@@ -1548,17 +1548,21 @@ def fetch_sessions():
         valid_records = []
         if all_rows and len(all_rows) > 1:
             headers = [str(h).strip() for h in all_rows[0]]
-            headers_limit = headers[:15]
             
             for row in all_rows[1:]:
                 row_dict = {}
-                for idx, h in enumerate(headers_limit):
+                for idx, h in enumerate(headers):
                     if idx < len(row):
                         row_dict[h] = str(row[idx]).strip()
                     else:
                         row_dict[h] = ""
                 
-                if row_dict.get("Session Date", "") != "" or row_dict.get("Professor Email", "") != "":
+                # Check for session date or email in any key
+                has_date_or_email = row_dict.get("Session Date", "") != "" or row_dict.get("Professor Email", "") != ""
+                if not has_date_or_email:
+                    has_date_or_email = any("@" in str(v) for v in row_dict.values())
+                
+                if has_date_or_email:
                     valid_records.append(row_dict)
                 
         graders = group_sessions_by_grader(valid_records)
@@ -1622,8 +1626,7 @@ def fetch_sessions():
             else:
                 date_display = date_str
             
-            is_multiple_professors = "," in info['email'] or ";" in info['email']
-            display_name = "Professor" if is_multiple_professors else info['name']
+            prof_name = info['name'] if info.get('name') and info['name'] != "Professor" else "Professor"
 
             # Extract topics and determine bifurcated session label for subject line
             topics = [str(s.get('topic', '')).strip() for s in info['sessions'] if s.get('topic')]
@@ -1645,10 +1648,10 @@ def fetch_sessions():
                 else:
                     session_label = "Live session"
 
-            subject = f"Reminder for upcoming {session_label} | {display_name} | {date_display}"
+            subject = f"Reminder for upcoming {session_label} | {prof_name} | {date_display}"
                 
             body_html = generate_email_body(
-                display_name, 
+                prof_name, 
                 info['sessions'], 
                 s_name, s_title, s_phone, s_email,
                 has_prism=info.get('has_prism_session', False),
