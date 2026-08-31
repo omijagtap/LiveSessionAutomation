@@ -764,25 +764,8 @@ def generate_email_body(name, sessions, signature_name="Team", signature_title="
         """
         closing = "<p>If you require any assistance, please do not hesitate to reach out. We look forward to your participation and wish you a smooth and successful session.</p>"
         
-    office_kw = ["office hour", "office hours", "oh"]
-    doubt_kw = ["doubt resolution", "doubts resolution", "doubt clearing", "doubt session", "q&a", "q & a"]
-    topics = [str(s.get('topic', '')).strip() for s in sessions if s.get('topic')]
-    
-    is_oh_or_doubt = is_office_hour_or_doubt or any(
-        any(kw in t.lower() for kw in office_kw + doubt_kw) for t in topics
-    )
-
-    if is_oh_or_doubt:
-        greeting_title = "Grader" if name == "Professor" else name
-    else:
-        greeting_title = name
-
-    if greeting_title == "Professor":
-        greeting = f"<p>Hello <strong>Professor</strong>,</p>"
-    elif greeting_title == "Grader":
-        greeting = f"<p>Hello <strong>Grader</strong>,</p>"
-    else:
-        greeting = f"<p>Hello <strong>{greeting_title}</strong>,</p>"
+    greeting_name = name if name and name != "Grader" else "Professor"
+    greeting = f"<p>Hello <strong>{greeting_name}</strong>,</p>"
 
     html = f"""
     <html>
