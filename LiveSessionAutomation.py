@@ -842,7 +842,21 @@ def group_sessions_by_grader(data):
     """
     graders = {}
     for row in data:
-        name = str(row.get("Professor Name", "Professor")).strip()
+        # Flexible extraction for Professor/Grader Name from sheet columns
+        name = ""
+        for name_key in ["Professor Name", "Prof Name", "Grader Name", "Instructor Name", "Faculty Name", "Name"]:
+            if row.get(name_key):
+                name = str(row.get(name_key)).strip()
+                break
+        if not name:
+            for k, v in row.items():
+                if "professor name" in k.lower() or "prof name" in k.lower() or "instructor name" in k.lower() or "grader name" in k.lower():
+                    if v and str(v).strip():
+                        name = str(v).strip()
+                        break
+        if not name or name.lower() == "nan":
+            name = "Professor"
+
         email = str(row.get("Professor Email", "")).strip()
         if not email or "@" not in email:
             continue
